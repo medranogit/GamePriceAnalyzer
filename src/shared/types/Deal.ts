@@ -1,0 +1,14 @@
+export interface GameDeal {
+  appId: number | null
+  title: string
+  coverUrl?: string
+  genres: string[]
+  ggDealsUrl: string
+  currency: string | null
+  currentRetailPrice: number | null
+  currentKeyshopPrice: number | null
+  historicalRetailLow: number | null
+  historicalKeyshopLow: number | null
+  steamPrice: number | null
+  steamDiscountPercent: number | null
+}

@@ -1,0 +1,7 @@
+export * from './Game'
+export * from './Deal'
+export * from './Settings'
+export * from './NotifiedDeal'
+export * from './GameMetadata'
+export * from './PriceHistory'
+export * from './WishlistPriceInfo'

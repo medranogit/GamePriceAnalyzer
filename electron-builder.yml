@@ -1,0 +1,15 @@
+appId: com.apphub360.gamepriceanalyzer
+productName: GamePriceAnalyzer
+directories:
+  buildResources: resources
+  output: release
+files:
+  - out/**/*
+extraResources:
+  - from: resources
+    to: .
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
