@@ -30,7 +30,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     selectedGenres: []
   },
   polling: {
-    intervalMinutes: 30,
+    // 65 (não 60) de propósito: dá uma margem além da janela de 1h do rate
+    // limit do GG.deals, em vez de bater exatamente na borda.
+    intervalMinutes: 65,
     quietHoursStart: null,
     quietHoursEnd: null
   }

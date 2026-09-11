@@ -38,7 +38,11 @@ export function isAtOrBelowHistoricalLow(deal: GameDeal): boolean {
  */
 export function getEffectiveDiscountPercent(deal: GameDeal): number | null {
   const best = getBestCurrentPrice(deal)
-  if (!best || deal.steamFullPrice === null || deal.steamFullPrice <= 0) return null
+  // `!deal.steamFullPrice` (em vez de `=== null`) cobre de propósito também `undefined` —
+  // ofertas cacheadas por uma versão anterior à introdução deste campo não o têm no JSON
+  // salvo em disco, e um `undefined` escapando pra conta abaixo vira NaN, que quebra
+  // silenciosamente qualquer comparação `>=` de filtro (NaN >= X é sempre falso).
+  if (!best || !deal.steamFullPrice || deal.steamFullPrice <= 0) return null
   const percent = ((deal.steamFullPrice - best.price) / deal.steamFullPrice) * 100
   return Math.round(percent)
 }

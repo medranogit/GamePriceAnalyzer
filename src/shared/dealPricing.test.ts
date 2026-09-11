@@ -93,6 +93,18 @@ describe('getEffectiveDiscountPercent', () => {
     const deal = makeDeal({ currentKeyshopPrice: 10.43, steamFullPrice: 99.9, steamDiscountPercent: null })
     expect(getEffectiveDiscountPercent(deal)).toBe(90)
   })
+
+  it('null (e não NaN) quando o campo nem existe no objeto — oferta salva em disco por uma versão anterior', () => {
+    // Regressão: um `deal` lido de um deals-cache.json salvo antes de `steamFullPrice`
+    // existir não tem essa chave no JSON — vira `undefined`, não `null`. Uma checagem
+    // `=== null` deixava passar, gerando NaN na conta e quebrando o filtro `>=` do
+    // Dashboard silenciosamente (NaN >= qualquer coisa é sempre falso).
+    const deal = makeDeal({ currentRetailPrice: 50 })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- simula JSON antigo sem o campo
+    delete (deal as any).steamFullPrice
+    expect(getEffectiveDiscountPercent(deal)).toBeNull()
+    expect(getDisplayDiscountPercent(deal)).not.toBeNaN()
+  })
 })
 
 describe('getDisplayDiscountPercent', () => {

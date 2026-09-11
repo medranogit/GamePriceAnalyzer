@@ -12,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd'
-import { NotificationOutlined } from '@ant-design/icons'
+import { NotificationOutlined, SyncOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
@@ -26,6 +26,7 @@ export function SettingsPage() {
   const setSteamApiKey = useSetSteamApiKey()
   const setGGDealsApiKey = useSetGGDealsApiKey()
   const [testingNotifications, setTestingNotifications] = useState(false)
+  const [checkingDealsNow, setCheckingDealsNow] = useState(false)
 
   const [steamId64Input, setSteamId64Input] = useState('')
   const [steamApiKeyInput, setSteamApiKeyInput] = useState('')
@@ -160,6 +161,29 @@ export function SettingsPage() {
                 }
               />
             </Space>
+          </Form.Item>
+
+          <Form.Item
+            label="Procurar ofertas agora"
+            extra="Roda uma busca imediata na wishlist inteira, sem esperar o próximo ciclo automático."
+          >
+            <Button
+              icon={<SyncOutlined />}
+              loading={checkingDealsNow}
+              onClick={async () => {
+                setCheckingDealsNow(true)
+                try {
+                  await window.api.polling.triggerNow()
+                  message.success('Busca de ofertas concluída.')
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setCheckingDealsNow(false)
+                }
+              }}
+            >
+              Procurar ofertas agora
+            </Button>
           </Form.Item>
 
           <Divider />

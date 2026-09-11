@@ -27,6 +27,30 @@ const StyledContent = styled(Content)`
   overflow-y: auto;
 `
 
+const SiderInner = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+`
+
+const Brand = styled.div`
+  padding: 20px 16px;
+  font-weight: 700;
+  font-size: 18px;
+`
+
+const MenuArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+`
+
+const SiderFooter = styled.div`
+  padding: 12px 16px;
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textMuted};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+`
+
 const menuItems = [
   { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Ofertas</Link> },
   { key: '/library', icon: <DatabaseOutlined />, label: <Link to="/library">Minha Biblioteca</Link> },
@@ -43,8 +67,13 @@ export function AppLayout() {
   return (
     <Layout style={{ height: '100vh' }}>
       <Sider width={220} theme="dark" style={{ borderRight: `1px solid ${appTheme.colors.border}` }}>
-        <div style={{ padding: '20px 16px', fontWeight: 700, fontSize: 18 }}>GamePriceAnalyzer</div>
-        <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
+        <SiderInner>
+          <Brand>GamePriceAnalyzer</Brand>
+          <MenuArea>
+            <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
+          </MenuArea>
+          <SiderFooter>medranogit</SiderFooter>
+        </SiderInner>
       </Sider>
       <Layout>
         <StyledHeader>Ofertas de jogos, sem repetir o que você já tem</StyledHeader>

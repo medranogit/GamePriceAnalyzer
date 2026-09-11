@@ -58,10 +58,17 @@ function createMainWindow(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     icon: getAppIconPath(),
+    title: `GamePriceAnalyzer v${app.getVersion()}`,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  // Sem isso, o <title> do index.html sobrescreveria o título (com versão) assim que a
+  // página carrega.
+  window.on('page-title-updated', (event) => {
+    event.preventDefault()
   })
 
   window.on('ready-to-show', () => {

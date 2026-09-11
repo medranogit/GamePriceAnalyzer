@@ -3,6 +3,7 @@ out/
 dist/
 dist-electron/
 release/
+docs/
 
 # Env / secrets
 .env
