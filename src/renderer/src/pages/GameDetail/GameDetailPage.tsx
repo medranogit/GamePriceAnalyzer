@@ -60,7 +60,11 @@ export function GameDetailPage() {
       <Descriptions bordered column={1} size="middle">
         <Descriptions.Item label="Preço na Steam">
           {formatPrice(deal.currency, deal.steamPrice)}
-          {deal.steamDiscountPercent ? <Tag color="green" style={{ marginLeft: 8 }}>-{deal.steamDiscountPercent}%</Tag> : null}
+          {deal.steamDiscountPercent ? (
+            <Tag color="green" style={{ marginLeft: 8 }}>
+              -{deal.steamDiscountPercent}%
+            </Tag>
+          ) : null}
         </Descriptions.Item>
         <Descriptions.Item label="Menor preço atual (lojas oficiais)">
           {formatPrice(deal.currency, deal.currentRetailPrice)}
@@ -77,7 +81,12 @@ export function GameDetailPage() {
       </Descriptions>
 
       {deal.ggDealsUrl && (
-        <a href={deal.ggDealsUrl} target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: 16 }}>
+        <a
+          href={deal.ggDealsUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: 'block', marginTop: 16 }}
+        >
           Ver todas as lojas no GG.deals
         </a>
       )}

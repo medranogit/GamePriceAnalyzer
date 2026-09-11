@@ -37,7 +37,8 @@ const menuItems = [
 
 export function AppLayout() {
   const location = useLocation()
-  const selectedKey = menuItems.find((item) => location.pathname.startsWith(item.key) && item.key !== '/')?.key ?? '/'
+  const selectedKey =
+    menuItems.find((item) => location.pathname.startsWith(item.key) && item.key !== '/')?.key ?? '/'
 
   return (
     <Layout style={{ height: '100vh' }}>

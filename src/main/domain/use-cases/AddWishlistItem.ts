@@ -23,7 +23,10 @@ export class AddWishlistItem {
       storeUrl: `https://store.steampowered.com/app/${appId}/`,
       addedDate: new Date().toLocaleDateString('pt-BR'),
       releaseDate: '',
-      currentPrice: metadata?.steamPrice !== null && metadata?.steamPrice !== undefined ? String(metadata.steamPrice) : null,
+      currentPrice:
+        metadata?.steamPrice !== null && metadata?.steamPrice !== undefined
+          ? String(metadata.steamPrice)
+          : null,
       discountPercent: metadata?.steamDiscountPercent ?? 0,
       reviewCount: 0,
       reviewPositivePercent: 0

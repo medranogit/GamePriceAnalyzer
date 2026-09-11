@@ -1,4 +1,7 @@
-import type { SteamWishlistEntry, SteamWishlistRepository } from '../../domain/repositories/SteamWishlistRepository'
+import type {
+  SteamWishlistEntry,
+  SteamWishlistRepository
+} from '../../domain/repositories/SteamWishlistRepository'
 import { resolveSteamId64 } from './resolveSteamId64'
 import { fetchWithRetry } from '../http/fetchWithRetry'
 

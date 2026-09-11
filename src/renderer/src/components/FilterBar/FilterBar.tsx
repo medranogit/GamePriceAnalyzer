@@ -27,7 +27,13 @@ interface FilterBarProps {
   availableGenres: string[]
 }
 
-export function FilterBar({ filters, onChange, searchTerm, onSearchChange, availableGenres }: FilterBarProps) {
+export function FilterBar({
+  filters,
+  onChange,
+  searchTerm,
+  onSearchChange,
+  availableGenres
+}: FilterBarProps) {
   return (
     <Card size="small" style={{ marginBottom: 16 }}>
       <TopRow>

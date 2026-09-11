@@ -72,7 +72,10 @@ function makeDeal(overrides: Partial<GameDeal> = {}): GameDeal {
   }
 }
 
-function makeSettingsRepository(quietHoursStart: string | null, quietHoursEnd: string | null): SettingsRepository {
+function makeSettingsRepository(
+  quietHoursStart: string | null,
+  quietHoursEnd: string | null
+): SettingsRepository {
   return {
     get: () =>
       ({

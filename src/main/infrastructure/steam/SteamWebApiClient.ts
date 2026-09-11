@@ -39,7 +39,9 @@ export class SteamWebApiClient {
 
     const res = await fetchWithRetry(url)
     if (res.status === 403) {
-      throw new Error('Steam recusou a chave da API (403). Verifique se copiou a chave certa em Configurações.')
+      throw new Error(
+        'Steam recusou a chave da API (403). Verifique se copiou a chave certa em Configurações.'
+      )
     }
     if (!res.ok) {
       throw new Error(`Steam GetOwnedGames falhou: HTTP ${res.status}`)

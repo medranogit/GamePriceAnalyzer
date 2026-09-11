@@ -1,5 +1,17 @@
 import { useState } from 'react'
-import { Button, Card, Divider, Form, Input, InputNumber, Space, Switch, TimePicker, Typography, message } from 'antd'
+import {
+  Button,
+  Card,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Space,
+  Switch,
+  TimePicker,
+  Typography,
+  message
+} from 'antd'
 import { NotificationOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
@@ -84,7 +96,9 @@ export function SettingsPage() {
           <Form.Item label="Chave da API do GG.deals" extra="Gere em gg.deals/api/">
             <Space.Compact style={{ width: '100%' }}>
               <Input.Password
-                placeholder={secretsStatus?.hasGGDealsApiKey ? '•••••••• (configurada)' : 'cole sua chave aqui'}
+                placeholder={
+                  secretsStatus?.hasGGDealsApiKey ? '•••••••• (configurada)' : 'cole sua chave aqui'
+                }
                 value={ggDealsApiKeyInput}
                 onChange={(e) => setGGDealsApiKeyInput(e.target.value)}
               />
@@ -125,7 +139,9 @@ export function SettingsPage() {
               <TimePicker
                 format="HH:mm"
                 placeholder="Início"
-                value={settings.polling.quietHoursStart ? dayjs(settings.polling.quietHoursStart, 'HH:mm') : null}
+                value={
+                  settings.polling.quietHoursStart ? dayjs(settings.polling.quietHoursStart, 'HH:mm') : null
+                }
                 onChange={(value) =>
                   updateSettings.mutate({
                     polling: { ...settings.polling, quietHoursStart: value ? value.format('HH:mm') : null }

@@ -36,7 +36,9 @@ export function LibraryPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}
+      >
         <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           Minha biblioteca Steam
           {games.length > 0 && (

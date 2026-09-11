@@ -21,22 +21,22 @@ import {
 } from '@ant-design/icons'
 
 const GENRE_ICONS: Record<string, ReactNode> = {
-  'Ação': <ThunderboltOutlined />,
-  'Aventura': <GlobalOutlined />,
-  'RPG': <CrownOutlined />,
-  'Estratégia': <DeploymentUnitOutlined />,
-  'Simulação': <ExperimentOutlined />,
-  'Esportes': <TrophyOutlined />,
-  'Corrida': <CarOutlined />,
-  'Casual': <SmileOutlined />,
-  'Indie': <BulbOutlined />,
+  Ação: <ThunderboltOutlined />,
+  Aventura: <GlobalOutlined />,
+  RPG: <CrownOutlined />,
+  Estratégia: <DeploymentUnitOutlined />,
+  Simulação: <ExperimentOutlined />,
+  Esportes: <TrophyOutlined />,
+  Corrida: <CarOutlined />,
+  Casual: <SmileOutlined />,
+  Indie: <BulbOutlined />,
   'Multijogador Massivo': <TeamOutlined />,
   'Acesso Antecipado': <RocketOutlined />,
   'Gratuitos para Jogar': <GiftOutlined />,
-  'Terror': <WarningOutlined />,
-  'Luta': <FireOutlined />,
+  Terror: <WarningOutlined />,
+  Luta: <FireOutlined />,
   'Design e Ilustração': <PictureOutlined />,
-  'Utilitários': <ToolOutlined />,
+  Utilitários: <ToolOutlined />,
   'Áudio de produção': <SoundOutlined />
 }
 

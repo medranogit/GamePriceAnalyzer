@@ -1,5 +1,17 @@
 import { useMemo, useState } from 'react'
-import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Tag, Tooltip, Typography, message } from 'antd'
+import {
+  AutoComplete,
+  Avatar,
+  Button,
+  Input,
+  Popconfirm,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message
+} from 'antd'
 import { CloudSyncOutlined, ReloadOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -69,12 +81,14 @@ export function WishlistPage() {
     {
       title: 'Preço atual (loja oficial)',
       key: 'currentRetail',
-      render: (_: unknown, row: Row) => formatPrice(row.price?.currency ?? null, row.price?.currentRetailPrice ?? null)
+      render: (_: unknown, row: Row) =>
+        formatPrice(row.price?.currency ?? null, row.price?.currentRetailPrice ?? null)
     },
     {
       title: 'Preço atual (keyshop)',
       key: 'currentKeyshop',
-      render: (_: unknown, row: Row) => formatPrice(row.price?.currency ?? null, row.price?.currentKeyshopPrice ?? null)
+      render: (_: unknown, row: Row) =>
+        formatPrice(row.price?.currency ?? null, row.price?.currentKeyshopPrice ?? null)
     },
     {
       title: 'Menor já visto (loja oficial)',
@@ -117,12 +131,7 @@ export function WishlistPage() {
           okText="Remover"
           cancelText="Cancelar"
         >
-          <Button
-            icon={<DeleteOutlined />}
-            danger
-            type="text"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <Button icon={<DeleteOutlined />} danger type="text" onClick={(e) => e.stopPropagation()} />
         </Popconfirm>
       )
     }
@@ -130,11 +139,15 @@ export function WishlistPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}
+      >
         <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           Wishlist
           {wishlist.length > 0 && (
-            <Tag color="blue">{filterTerm ? `${rows.length} de ${wishlist.length}` : wishlist.length} jogos</Tag>
+            <Tag color="blue">
+              {filterTerm ? `${rows.length} de ${wishlist.length}` : wishlist.length} jogos
+            </Tag>
           )}
         </Title>
         <Space>
@@ -152,7 +165,10 @@ export function WishlistPage() {
               onClick={() =>
                 syncFromSteam.mutate(undefined, {
                   onSuccess: (items) => message.success(`Wishlist sincronizada: ${items.length} jogos.`),
-                  onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao sincronizar com a Steam.')
+                  onError: (error) =>
+                    message.error(
+                      error instanceof Error ? error.message : 'Falha ao sincronizar com a Steam.'
+                    )
                 })
               }
             >
@@ -166,7 +182,8 @@ export function WishlistPage() {
             disabled={wishlist.length === 0}
             onClick={() =>
               refreshPrices.mutate(undefined, {
-                onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao atualizar preços.')
+                onError: (error) =>
+                  message.error(error instanceof Error ? error.message : 'Falha ao atualizar preços.')
               })
             }
           >

@@ -34,7 +34,9 @@ export function DashboardPage() {
     ? deals
         .filter((deal) => matchesSearchTokens(deal.title, searchTerm))
         .filter((deal) => qualifiesAsDeal(deal, filters.minDiscountPercent))
-        .map((deal) => (filters.includeKeyshops ? deal : { ...deal, currentKeyshopPrice: null, historicalKeyshopLow: null }))
+        .map((deal) =>
+          filters.includeKeyshops ? deal : { ...deal, currentKeyshopPrice: null, historicalKeyshopLow: null }
+        )
         .filter((deal) => {
           const best = getBestCurrentPrice(deal)
           if (!best) return filters.minPrice === null && filters.maxPrice === null
@@ -43,11 +45,15 @@ export function DashboardPage() {
           return true
         })
         .filter(
-          (deal) => filters.selectedGenres.length === 0 || deal.genres.some((genre) => filters.selectedGenres.includes(genre))
+          (deal) =>
+            filters.selectedGenres.length === 0 ||
+            deal.genres.some((genre) => filters.selectedGenres.includes(genre))
         )
     : []
 
-  const sortedDeals = [...filteredDeals].sort((a, b) => (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? ''))
+  const sortedDeals = [...filteredDeals].sort((a, b) =>
+    (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? '')
+  )
 
   useEffect(() => {
     setCurrentPage(1)
@@ -71,7 +77,9 @@ export function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}
+      >
         <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           Ofertas para você
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}

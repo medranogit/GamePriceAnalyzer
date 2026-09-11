@@ -11,7 +11,10 @@
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
@@ -27,15 +30,23 @@
     "styled-components": "^6.1.13"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.7.4",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@types/styled-components": "^5.1.34",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
     "@vitejs/plugin-react": "^4.3.2",
     "electron": "^32.1.2",
     "electron-builder": "^25.0.5",
     "electron-vite": "^2.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "prettier": "^3.9.6",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vitest": "^2.1.1"

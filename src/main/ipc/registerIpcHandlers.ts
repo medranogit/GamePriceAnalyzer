@@ -59,7 +59,9 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.wishlistAdd, (_event, appId: number) => deps.addWishlistItem.execute(appId))
 
-  ipcMain.handle(IPC_CHANNELS.wishlistRemove, (_event, appId: number) => deps.removeWishlistItem.execute(appId))
+  ipcMain.handle(IPC_CHANNELS.wishlistRemove, (_event, appId: number) =>
+    deps.removeWishlistItem.execute(appId)
+  )
 
   ipcMain.handle(IPC_CHANNELS.wishlistRefreshPrices, () => deps.refreshWishlistPrices.execute())
 
@@ -71,7 +73,9 @@ export function registerIpcHandlers(deps: Dependencies): void {
     return deps.syncSteamWishlist.execute(settings.steamId64)
   })
 
-  ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) => deps.steamSearchRepository.searchGames(query))
+  ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) =>
+    deps.steamSearchRepository.searchGames(query)
+  )
 
   ipcMain.handle(IPC_CHANNELS.dealsGetCached, () => deps.cacheRepository.getDeals())
 
