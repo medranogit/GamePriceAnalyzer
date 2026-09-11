@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './infrastructure/logging/logger'
+import { getAppIconPath } from './infrastructure/appIcon'
 import { SecretsStore } from './infrastructure/secrets/SecretsStore'
 import { ElectronStoreSettingsRepository } from './infrastructure/storage/ElectronStoreSettingsRepository'
 import { ElectronStoreAppCacheRepository } from './infrastructure/storage/ElectronStoreAppCacheRepository'
@@ -20,6 +21,7 @@ import { PollingScheduler } from './infrastructure/scheduler/PollingScheduler'
 import { TrayController } from './infrastructure/tray/TrayController'
 import { AutoLaunchService } from './infrastructure/autostart/AutoLaunchService'
 import { JsonPriceHistoryRepository } from './infrastructure/storage/JsonPriceHistoryRepository'
+import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository'
 import { SyncSteamLibrary } from './domain/use-cases/SyncSteamLibrary'
 import { ImportWishlist } from './domain/use-cases/ImportWishlist'
 import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
@@ -32,6 +34,9 @@ import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 const startedHidden = process.argv.includes('--hidden')
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
+
+// Necessário no Windows pra notificações mostrarem o nome/ícone certo do app.
+app.setAppUserModelId('com.apphub360.gamepriceanalyzer')
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
@@ -53,6 +58,7 @@ function createMainWindow(): BrowserWindow {
     height: 800,
     show: false,
     autoHideMenuBar: true,
+    icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -62,10 +68,6 @@ function createMainWindow(): BrowserWindow {
   window.on('ready-to-show', () => {
     if (!startedHidden) window.show()
   })
-
-  if (is.dev) {
-    window.webContents.openDevTools({ mode: 'detach' })
-  }
 
   window.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logger.error(`Falha ao carregar renderer: ${errorCode} ${errorDescription} (${validatedURL})`)
@@ -105,6 +107,7 @@ async function bootstrap(): Promise<void> {
   const settingsRepository = new ElectronStoreSettingsRepository()
   const cacheRepository = new ElectronStoreAppCacheRepository()
   const notifiedDealsRepository = new ElectronStoreNotifiedDealsRepository()
+  const historyRepository = new JsonHistoryRepository()
   const autoLaunchService = new AutoLaunchService()
 
   const steamClient = new SteamWebApiClient(() => secretsStore.get('steamApiKey'))
@@ -118,10 +121,10 @@ async function bootstrap(): Promise<void> {
   const ggDealsClient = new GGDealsApiClient(() => secretsStore.get('ggDealsApiKey'))
   const dealsRepository = new DealsRepositoryImpl(ggDealsClient)
 
-  const syncSteamLibrary = new SyncSteamLibrary(steamLibraryRepository, cacheRepository)
-  const importWishlist = new ImportWishlist(wishlistRepository, cacheRepository)
-  const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository)
-  const removeWishlistItem = new RemoveWishlistItem(cacheRepository)
+  const syncSteamLibrary = new SyncSteamLibrary(steamLibraryRepository, cacheRepository, historyRepository)
+  const importWishlist = new ImportWishlist(wishlistRepository, cacheRepository, historyRepository)
+  const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository, historyRepository)
+  const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
   const refreshWishlistPrices = new RefreshWishlistPrices(
     dealsRepository,
     metadataRepository,
@@ -140,7 +143,12 @@ async function bootstrap(): Promise<void> {
   mainWindow = createMainWindow()
 
   const notificationService = new ElectronNotificationService(() => mainWindow, settingsRepository)
-  const checkDealAlerts = new CheckDealAlerts(fetchOwnableDeals, notifiedDealsRepository, notificationService)
+  const checkDealAlerts = new CheckDealAlerts(
+    fetchOwnableDeals,
+    notifiedDealsRepository,
+    notificationService,
+    historyRepository
+  )
 
   const scheduler = new PollingScheduler(async () => {
     await checkDealAlerts.execute()
@@ -158,6 +166,7 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers({
     settingsRepository,
     cacheRepository,
+    historyRepository,
     syncSteamLibrary,
     importWishlist,
     addWishlistItem,

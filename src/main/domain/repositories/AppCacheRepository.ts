@@ -7,10 +7,13 @@ export interface AppCacheRepository {
   getWishlist(): WishlistItem[]
   setWishlist(items: WishlistItem[]): void
 
+  /** Ofertas atuais do fluxo principal (Dashboard) — substituído por completo a cada busca. */
   getDeals(): GameDeal[]
   setDeals(deals: GameDeal[]): void
-  /** Mescla por AppID em vez de substituir — usado por fluxos que buscam um subconjunto (ex: wishlist). */
-  upsertDeals(deals: GameDeal[]): void
+
+  /** Preços atuais buscados pela aba Wishlist — cache separado, não polui a lista de Ofertas. */
+  getWishlistDeals(): GameDeal[]
+  setWishlistDeals(deals: GameDeal[]): void
 
   getMetadata(appId: number): GameMetadata | null
   setMetadata(metadata: GameMetadata): void

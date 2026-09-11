@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Descriptions, Empty, Tag, Typography } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined } from '@ant-design/icons'
-import { useDeals } from '@renderer/hooks/useDeals'
+import { useDeals, useWishlistDealsCache } from '@renderer/hooks/useDeals'
 import { GameCover } from '@renderer/components/GameCover/GameCover'
 import { formatPrice } from '@renderer/lib/formatters'
 
@@ -11,7 +11,9 @@ export function GameDetailPage() {
   const { appId } = useParams<{ appId: string }>()
   const navigate = useNavigate()
   const { data: deals = [] } = useDeals()
-  const deal = deals.find((d) => String(d.appId) === appId)
+  const { data: wishlistDeals = [] } = useWishlistDealsCache()
+  const deal =
+    deals.find((d) => String(d.appId) === appId) ?? wishlistDeals.find((d) => String(d.appId) === appId)
 
   if (!deal) {
     return (

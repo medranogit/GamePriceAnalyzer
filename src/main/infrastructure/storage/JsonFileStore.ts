@@ -3,6 +3,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { logger } from '../logging/logger'
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 /**
  * Persistência simples em JSON no diretório userData. Substitui electron-store
  * (que na v10 é ESM-only e conflita com o bundle do main process) por algo
@@ -35,7 +39,14 @@ export class JsonFileStore<T> {
     if (!existsSync(this.filePath)) return defaults
     try {
       const parsed = JSON.parse(readFileSync(this.filePath, 'utf-8')) as T
-      return { ...defaults, ...parsed }
+
+      if (Array.isArray(defaults)) {
+        return (Array.isArray(parsed) ? parsed : defaults) as T
+      }
+      if (isPlainObject(defaults) && isPlainObject(parsed)) {
+        return { ...defaults, ...parsed }
+      }
+      return parsed
     } catch (error) {
       logger.error(`Falha ao ler ${this.filePath}, usando valores padrão.`, error)
       return defaults

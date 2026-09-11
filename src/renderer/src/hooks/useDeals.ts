@@ -11,6 +11,13 @@ export function useDeals() {
   })
 }
 
+export function useWishlistDealsCache() {
+  return useQuery({
+    queryKey: ['wishlist-deals-cache'],
+    queryFn: () => window.api.deals.getWishlistCached()
+  })
+}
+
 export function useFetchDeals() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -2,60 +2,56 @@ import type { GameDeal, GameMetadata, OwnedGame, WishlistItem } from '@shared/ty
 import type { AppCacheRepository } from '../../domain/repositories/AppCacheRepository'
 import { JsonFileStore } from './JsonFileStore'
 
-interface CacheSchema {
-  ownedGames: OwnedGame[]
-  wishlist: WishlistItem[]
-  deals: GameDeal[]
-  metadata: Record<string, GameMetadata>
-}
-
-const DEFAULTS: CacheSchema = { ownedGames: [], wishlist: [], deals: [], metadata: {} }
-
+/**
+ * Um JsonFileStore por concern — evita reescrever tudo (ex: centenas de
+ * ofertas) só porque uma seção pequena (metadata de 1 jogo) mudou, e deixa
+ * cada arquivo inspecionável sozinho.
+ */
 export class ElectronStoreAppCacheRepository implements AppCacheRepository {
-  private readonly store = new JsonFileStore<CacheSchema>('cache.json', DEFAULTS)
+  private readonly ownedGamesStore = new JsonFileStore<OwnedGame[]>('library.json', [])
+  private readonly wishlistStore = new JsonFileStore<WishlistItem[]>('wishlist.json', [])
+  private readonly dealsStore = new JsonFileStore<GameDeal[]>('deals-cache.json', [])
+  private readonly wishlistDealsStore = new JsonFileStore<GameDeal[]>('wishlist-deals-cache.json', [])
+  private readonly metadataStore = new JsonFileStore<Record<string, GameMetadata>>('metadata-cache.json', {})
 
   getOwnedGames(): OwnedGame[] {
-    return this.store.read().ownedGames
+    return this.ownedGamesStore.read()
   }
 
   setOwnedGames(games: OwnedGame[]): void {
-    this.store.write({ ...this.store.read(), ownedGames: games })
+    this.ownedGamesStore.write(games)
   }
 
   getWishlist(): WishlistItem[] {
-    return this.store.read().wishlist
+    return this.wishlistStore.read()
   }
 
   setWishlist(items: WishlistItem[]): void {
-    this.store.write({ ...this.store.read(), wishlist: items })
+    this.wishlistStore.write(items)
   }
 
   getDeals(): GameDeal[] {
-    return this.store.read().deals
+    return this.dealsStore.read()
   }
 
   setDeals(deals: GameDeal[]): void {
-    this.store.write({ ...this.store.read(), deals })
+    this.dealsStore.write(deals)
   }
 
-  upsertDeals(deals: GameDeal[]): void {
-    const current = this.store.read()
-    const byAppId = new Map(current.deals.map((d) => [d.appId, d]))
-    for (const deal of deals) {
-      byAppId.set(deal.appId, deal)
-    }
-    this.store.write({ ...current, deals: [...byAppId.values()] })
+  getWishlistDeals(): GameDeal[] {
+    return this.wishlistDealsStore.read()
+  }
+
+  setWishlistDeals(deals: GameDeal[]): void {
+    this.wishlistDealsStore.write(deals)
   }
 
   getMetadata(appId: number): GameMetadata | null {
-    return this.store.read().metadata[String(appId)] ?? null
+    return this.metadataStore.read()[String(appId)] ?? null
   }
 
   setMetadata(metadata: GameMetadata): void {
-    const current = this.store.read()
-    this.store.write({
-      ...current,
-      metadata: { ...current.metadata, [String(metadata.appId)]: metadata }
-    })
+    const current = this.metadataStore.read()
+    this.metadataStore.write({ ...current, [String(metadata.appId)]: metadata })
   }
 }

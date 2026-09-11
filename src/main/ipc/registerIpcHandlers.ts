@@ -13,10 +13,12 @@ import type { SteamSearchRepository } from '../domain/repositories/SteamSearchRe
 import type { PollingScheduler } from '../infrastructure/scheduler/PollingScheduler'
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
 import type { AutoLaunchService } from '../infrastructure/autostart/AutoLaunchService'
+import type { HistoryRepository } from '../domain/repositories/HistoryRepository'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
   cacheRepository: AppCacheRepository
+  historyRepository: HistoryRepository
   syncSteamLibrary: SyncSteamLibrary
   importWishlist: ImportWishlist
   addWishlistItem: AddWishlistItem
@@ -78,6 +80,8 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.dealsGetCached, () => deps.cacheRepository.getDeals())
 
+  ipcMain.handle(IPC_CHANNELS.wishlistDealsGetCached, () => deps.cacheRepository.getWishlistDeals())
+
   ipcMain.handle(IPC_CHANNELS.dealsFetch, () => deps.fetchOwnableDeals.execute())
 
   ipcMain.handle(IPC_CHANNELS.pollingTriggerNow, () => deps.scheduler.runNow())
@@ -105,4 +109,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
   ipcMain.handle(IPC_CHANNELS.secretsSetGGDealsApiKey, (_event, value: string) => {
     deps.secretsStore.set('ggDealsApiKey', value)
   })
+
+  ipcMain.handle(IPC_CHANNELS.historyGetEvents, () => deps.historyRepository.getEvents())
 }

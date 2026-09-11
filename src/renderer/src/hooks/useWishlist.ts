@@ -46,6 +46,7 @@ export function useWishlistPrices() {
     mutationFn: () => window.api.wishlist.refreshPrices(),
     onSuccess: (prices) => {
       queryClient.setQueryData(WISHLIST_PRICES_KEY, prices)
+      queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
     }
   })
 }

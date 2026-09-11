@@ -11,4 +11,6 @@ export interface GameDeal {
   historicalKeyshopLow: number | null
   steamPrice: number | null
   steamDiscountPercent: number | null
+  /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
+  firstSeenAt: string
 }

@@ -7,6 +7,7 @@ import { LibraryPage } from '@renderer/pages/Library/LibraryPage'
 import { WishlistPage } from '@renderer/pages/Wishlist/WishlistPage'
 import { GenresPage } from '@renderer/pages/Genres/GenresPage'
 import { GameDetailPage } from '@renderer/pages/GameDetail/GameDetailPage'
+import { HistoryPage } from '@renderer/pages/History/HistoryPage'
 import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
 import { useDealsFoundListener } from '@renderer/hooks/useDeals'
 import { playAlertSound } from '@renderer/lib/playAlertSound'
@@ -44,6 +45,7 @@ export function App() {
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="genres" element={<GenresPage />} />
           <Route path="game/:appId" element={<GameDetailPage />} />
+          <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

@@ -1,4 +1,5 @@
-import { Card, Slider, Space, Switch, Typography } from 'antd'
+import { Card, Slider, Space, Switch, Tooltip, Typography } from 'antd'
+import { InfoCircleOutlined } from '@ant-design/icons'
 import styled from 'styled-components'
 import type { FilterSettings } from '@shared/types'
 
@@ -19,7 +20,12 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     <Card size="small" style={{ marginBottom: 16 }}>
       <FilterRow size="large" align="center">
         <Space direction="vertical" size={0}>
-          <Text type="secondary">Desconto mínimo (Steam): {filters.minDiscountPercent}%</Text>
+          <Text type="secondary">
+            Desconto mínimo (Steam): {filters.minDiscountPercent}%{' '}
+            <Tooltip title="Uma oferta também passa se o preço atual já bater o menor preço histórico do GG.deals, mesmo sem desconto ativo na Steam.">
+              <InfoCircleOutlined />
+            </Tooltip>
+          </Text>
           <Slider
             style={{ width: 220 }}
             min={0}

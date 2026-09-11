@@ -1,11 +1,13 @@
 import type { WishlistItem } from '@shared/types'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 
 export class AddWishlistItem {
   constructor(
     private readonly metadataRepository: GameMetadataRepository,
-    private readonly cacheRepository: AppCacheRepository
+    private readonly cacheRepository: AppCacheRepository,
+    private readonly historyRepository: HistoryRepository
   ) {}
 
   async execute(appId: number): Promise<WishlistItem[]> {
@@ -29,6 +31,7 @@ export class AddWishlistItem {
 
     const next = [...current, newItem]
     this.cacheRepository.setWishlist(next)
+    this.historyRepository.addEvent('wishlist_add', `Adicionado à wishlist: ${newItem.title}.`)
     return next
   }
 }

@@ -3,6 +3,7 @@ import {
   AppstoreOutlined,
   DatabaseOutlined,
   HeartOutlined,
+  HistoryOutlined,
   SettingOutlined,
   TagsOutlined
 } from '@ant-design/icons'
@@ -32,6 +33,7 @@ const menuItems = [
   { key: '/library', icon: <DatabaseOutlined />, label: <Link to="/library">Minha Biblioteca</Link> },
   { key: '/wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Wishlist</Link> },
   { key: '/genres', icon: <TagsOutlined />, label: <Link to="/genres">Gêneros</Link> },
+  { key: '/history', icon: <HistoryOutlined />, label: <Link to="/history">Histórico</Link> },
   { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> }
 ]
 

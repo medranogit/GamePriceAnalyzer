@@ -2,6 +2,7 @@ import type { GameDeal } from '@shared/types'
 import { getBestCurrentPrice } from '@shared/dealPricing'
 import type { FetchOwnableDeals } from './FetchOwnableDeals'
 import type { NotifiedDealsRepository } from '../repositories/NotifiedDealsRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 
 export interface NotificationService {
   notifyDeal(deal: GameDeal): void
@@ -9,13 +10,15 @@ export interface NotificationService {
 
 /**
  * Executado a cada tick do polling em background. Reaproveita FetchOwnableDeals
- * e só dispara notificação para ofertas que ainda não foram notificadas nesse preço.
+ * e só dispara notificação uma vez por preço — só notifica de novo se o preço
+ * cair ainda mais.
  */
 export class CheckDealAlerts {
   constructor(
     private readonly fetchOwnableDeals: FetchOwnableDeals,
     private readonly notifiedDealsRepository: NotifiedDealsRepository,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly historyRepository: HistoryRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
@@ -27,7 +30,7 @@ export class CheckDealAlerts {
       if (deal.appId === null || !best) continue
 
       const price = best.price
-      if (this.notifiedDealsRepository.wasRecentlyNotified(deal.appId, price)) continue
+      if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, price)) continue
 
       this.notificationService.notifyDeal(deal)
       this.notifiedDealsRepository.markNotified({
@@ -35,6 +38,10 @@ export class CheckDealAlerts {
         lastNotifiedPrice: price,
         lastNotifiedAt: new Date().toISOString()
       })
+      this.historyRepository.addEvent(
+        'deal_found',
+        `${deal.title}: ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+      )
       newlyNotified.push(deal)
     }
 

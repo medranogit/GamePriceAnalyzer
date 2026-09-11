@@ -1,4 +1,5 @@
 import type { WishlistPriceInfo } from '@shared/types'
+import { preserveFirstSeenAt } from '../dealOrdering'
 import type { DealsRepository } from '../repositories/DealsRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { PriceHistoryRepository } from '../repositories/PriceHistoryRepository'
@@ -21,8 +22,9 @@ export class RefreshWishlistPrices {
     const wishlist = this.cacheRepository.getWishlist()
     if (wishlist.length === 0) return []
 
-    const deals = await this.dealsRepository.fetchDealsBySteamAppIds(wishlist.map((w) => w.appId))
-    this.cacheRepository.upsertDeals(deals.filter((d) => d.appId !== null))
+    const rawDeals = await this.dealsRepository.fetchDealsBySteamAppIds(wishlist.map((w) => w.appId))
+    const deals = preserveFirstSeenAt(rawDeals, this.cacheRepository.getWishlistDeals())
+    this.cacheRepository.setWishlistDeals(deals.filter((d) => d.appId !== null))
     const dealsByAppId = new Map(deals.filter((d) => d.appId !== null).map((d) => [d.appId as number, d]))
 
     const results: WishlistPriceInfo[] = []

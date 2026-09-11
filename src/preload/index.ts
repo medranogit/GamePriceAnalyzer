@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
   GameDeal,
+  HistoryEvent,
   OwnedGame,
   SteamSearchResult,
   WishlistItem,
@@ -33,6 +34,7 @@ const api = {
   },
   deals: {
     getCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.dealsGetCached),
+    getWishlistCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistDealsGetCached),
     fetch: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.dealsFetch)
   },
   polling: {
@@ -48,6 +50,9 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.secretsSetSteamApiKey, value),
     setGGDealsApiKey: (value: string): Promise<void> =>
       ipcRenderer.invoke(IPC_CHANNELS.secretsSetGGDealsApiKey, value)
+  },
+  history: {
+    getEvents: (): Promise<HistoryEvent[]> => ipcRenderer.invoke(IPC_CHANNELS.historyGetEvents)
   },
   onDealsFound: (callback: (deal: GameDeal) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, deal: GameDeal): void => callback(deal)
