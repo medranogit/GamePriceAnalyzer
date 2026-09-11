@@ -34,11 +34,13 @@ const api = {
   },
   deals: {
     getCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.dealsGetCached),
-    getWishlistCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistDealsGetCached),
-    fetch: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.dealsFetch)
+    getWishlistCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistDealsGetCached)
   },
   polling: {
     triggerNow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.pollingTriggerNow)
+  },
+  notifications: {
+    test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest)
   },
   app: {
     pickWishlistFile: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.pickWishlistFile)

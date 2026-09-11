@@ -1,4 +1,4 @@
-appId: com.apphub360.gamepriceanalyzer
+appId: com.gamepriceanalyzer.app
 productName: GamePriceAnalyzer
 directories:
   buildResources: resources

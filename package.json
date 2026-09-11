@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Monitora ofertas do GG.deals, cruza com sua biblioteca e wishlist da Steam, e notifica quando vale a pena comprar.",
-  "author": "vinicius.medrano@apphub360.com.br",
+  "author": "viniciusmedprofi@hotmail.com",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

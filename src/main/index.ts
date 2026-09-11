@@ -11,7 +11,6 @@ import { ElectronStoreNotifiedDealsRepository } from './infrastructure/storage/E
 import { SteamWebApiClient } from './infrastructure/steam/SteamWebApiClient'
 import { SteamLibraryRepositoryImpl } from './infrastructure/steam/SteamLibraryRepositoryImpl'
 import { SteamStoreMetadataRepositoryImpl } from './infrastructure/steam/SteamStoreMetadataRepositoryImpl'
-import { SteamSpecialsRepositoryImpl } from './infrastructure/steam/SteamSpecialsRepositoryImpl'
 import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
 import { WishlistJsonRepositoryImpl } from './infrastructure/wishlist/WishlistJsonRepositoryImpl'
 import { GGDealsApiClient } from './infrastructure/ggdeals/GGDealsApiClient'
@@ -36,7 +35,7 @@ let mainWindow: BrowserWindow | null = null
 let isQuitting = false
 
 // Necessário no Windows pra notificações mostrarem o nome/ícone certo do app.
-app.setAppUserModelId('com.apphub360.gamepriceanalyzer')
+app.setAppUserModelId('com.gamepriceanalyzer.app')
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
@@ -114,7 +113,6 @@ async function bootstrap(): Promise<void> {
   const steamLibraryRepository = new SteamLibraryRepositoryImpl(steamClient)
   const wishlistRepository = new WishlistJsonRepositoryImpl()
   const metadataRepository = new SteamStoreMetadataRepositoryImpl()
-  const steamSpecialsRepository = new SteamSpecialsRepositoryImpl()
   const steamSearchRepository = new SteamSearchRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()
 
@@ -133,11 +131,9 @@ async function bootstrap(): Promise<void> {
   )
   const fetchOwnableDeals = new FetchOwnableDeals(
     dealsRepository,
-    steamSpecialsRepository,
     metadataRepository,
     priceHistoryRepository,
-    cacheRepository,
-    settingsRepository
+    cacheRepository
   )
 
   mainWindow = createMainWindow()
@@ -147,7 +143,8 @@ async function bootstrap(): Promise<void> {
     fetchOwnableDeals,
     notifiedDealsRepository,
     notificationService,
-    historyRepository
+    historyRepository,
+    settingsRepository
   )
 
   const scheduler = new PollingScheduler(async () => {
@@ -173,10 +170,10 @@ async function bootstrap(): Promise<void> {
     removeWishlistItem,
     refreshWishlistPrices,
     steamSearchRepository,
-    fetchOwnableDeals,
     scheduler,
     secretsStore,
     autoLaunchService,
+    notificationService,
     getMainWindow: () => mainWindow
   })
 

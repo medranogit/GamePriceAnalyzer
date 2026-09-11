@@ -1,7 +1,8 @@
 export interface FilterSettings {
   minDiscountPercent: number
+  minPrice: number | null
+  maxPrice: number | null
   includeKeyshops: boolean
-  wishlistOnlyMode: boolean
   selectedGenres: string[]
 }
 
@@ -25,8 +26,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoStartOnBoot: false,
   filters: {
     minDiscountPercent: 50,
+    minPrice: null,
+    maxPrice: null,
     includeKeyshops: true,
-    wishlistOnlyMode: false,
     selectedGenres: []
   },
   polling: {

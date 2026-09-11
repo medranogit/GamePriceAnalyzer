@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Button, Empty, Row, Col, Spin, Tag, Typography, Pagination, message } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { Empty, Row, Col, Spin, Tag, Typography, Pagination } from 'antd'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
-import { useDeals, useFetchDeals } from '@renderer/hooks/useDeals'
+import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
+import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
+import { getBestCurrentPrice, qualifiesAsDeal } from '@shared/dealPricing'
 import type { FilterSettings } from '@shared/types'
 
 const { Title } = Typography
@@ -15,15 +16,50 @@ export function DashboardPage() {
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
   const { data: deals = [], isLoading } = useDeals()
-  const fetchDeals = useFetchDeals()
 
   const [currentPage, setCurrentPage] = useState(1)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const sortedDeals = [...deals].sort((a, b) => (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? ''))
+  const filters = settings?.filters
+
+  const genreCounts = new Map<string, number>()
+  for (const deal of deals) {
+    for (const genre of deal.genres) {
+      genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1)
+    }
+  }
+  const availableGenres = [...genreCounts.entries()].sort((a, b) => b[1] - a[1]).map(([genre]) => genre)
+
+  const filteredDeals = filters
+    ? deals
+        .filter((deal) => matchesSearchTokens(deal.title, searchTerm))
+        .filter((deal) => qualifiesAsDeal(deal, filters.minDiscountPercent))
+        .map((deal) => (filters.includeKeyshops ? deal : { ...deal, currentKeyshopPrice: null, historicalKeyshopLow: null }))
+        .filter((deal) => {
+          const best = getBestCurrentPrice(deal)
+          if (!best) return filters.minPrice === null && filters.maxPrice === null
+          if (filters.minPrice !== null && best.price < filters.minPrice) return false
+          if (filters.maxPrice !== null && best.price > filters.maxPrice) return false
+          return true
+        })
+        .filter(
+          (deal) => filters.selectedGenres.length === 0 || deal.genres.some((genre) => filters.selectedGenres.includes(genre))
+        )
+    : []
+
+  const sortedDeals = [...filteredDeals].sort((a, b) => (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? ''))
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [deals])
+  }, [
+    deals,
+    searchTerm,
+    filters?.minDiscountPercent,
+    filters?.includeKeyshops,
+    filters?.selectedGenres,
+    filters?.minPrice,
+    filters?.maxPrice
+  ])
 
   const pagedDeals = sortedDeals.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
@@ -40,26 +76,20 @@ export function DashboardPage() {
           Ofertas para você
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}
         </Title>
-        <Button
-          type="primary"
-          icon={<ReloadOutlined />}
-          loading={fetchDeals.isPending}
-          onClick={() =>
-            fetchDeals.mutate(undefined, {
-              onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao buscar ofertas.')
-            })
-          }
-        >
-          Buscar ofertas agora
-        </Button>
       </div>
 
-      <FilterBar filters={settings.filters} onChange={handleFilterChange} />
+      <FilterBar
+        filters={settings.filters}
+        onChange={handleFilterChange}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        availableGenres={availableGenres}
+      />
 
       {isLoading ? (
         <Spin />
       ) : sortedDeals.length === 0 ? (
-        <Empty description="Nenhuma oferta ainda. Clique em 'Buscar ofertas agora'." />
+        <Empty description="Nenhuma oferta encontrada ainda. A busca roda sozinha em segundo plano." />
       ) : (
         <>
           <Row gutter={[16, 16]}>

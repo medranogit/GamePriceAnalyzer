@@ -1,11 +1,10 @@
 import { ipcMain, dialog, type BrowserWindow } from 'electron'
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, GameDeal } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
 import type { SettingsRepository } from '../domain/repositories/SettingsRepository'
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
 import type { SyncSteamLibrary } from '../domain/use-cases/SyncSteamLibrary'
 import type { ImportWishlist } from '../domain/use-cases/ImportWishlist'
-import type { FetchOwnableDeals } from '../domain/use-cases/FetchOwnableDeals'
 import type { AddWishlistItem } from '../domain/use-cases/AddWishlistItem'
 import type { RemoveWishlistItem } from '../domain/use-cases/RemoveWishlistItem'
 import type { RefreshWishlistPrices } from '../domain/use-cases/RefreshWishlistPrices'
@@ -14,18 +13,19 @@ import type { PollingScheduler } from '../infrastructure/scheduler/PollingSchedu
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
 import type { AutoLaunchService } from '../infrastructure/autostart/AutoLaunchService'
 import type { HistoryRepository } from '../domain/repositories/HistoryRepository'
+import type { NotificationService } from '../domain/use-cases/CheckDealAlerts'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
   cacheRepository: AppCacheRepository
   historyRepository: HistoryRepository
+  notificationService: NotificationService
   syncSteamLibrary: SyncSteamLibrary
   importWishlist: ImportWishlist
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
   refreshWishlistPrices: RefreshWishlistPrices
   steamSearchRepository: SteamSearchRepository
-  fetchOwnableDeals: FetchOwnableDeals
   scheduler: PollingScheduler
   secretsStore: SecretsStore
   autoLaunchService: AutoLaunchService
@@ -82,8 +82,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.wishlistDealsGetCached, () => deps.cacheRepository.getWishlistDeals())
 
-  ipcMain.handle(IPC_CHANNELS.dealsFetch, () => deps.fetchOwnableDeals.execute())
-
   ipcMain.handle(IPC_CHANNELS.pollingTriggerNow, () => deps.scheduler.runNow())
 
   ipcMain.handle(IPC_CHANNELS.pickWishlistFile, async () => {
@@ -111,4 +109,61 @@ export function registerIpcHandlers(deps: Dependencies): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.historyGetEvents, () => deps.historyRepository.getEvents())
+
+  ipcMain.handle(IPC_CHANNELS.notificationsTest, async () => {
+    const fakeDeals: GameDeal[] = [
+      makeFakeDeal({
+        appId: 1245620,
+        title: 'Elden Ring (teste 1)',
+        currency: 'BRL',
+        currentRetailPrice: 149.5,
+        steamDiscountPercent: 50,
+        coverUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/header.jpg'
+      }),
+      makeFakeDeal({
+        appId: 367520,
+        title: 'Hollow Knight (teste 2)',
+        currency: 'BRL',
+        currentKeyshopPrice: 12.9,
+        steamDiscountPercent: null,
+        coverUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/367520/header.jpg'
+      }),
+      makeFakeDeal({
+        appId: 1086940,
+        title: 'Baldur’s Gate 3 (teste 3)',
+        currency: 'BRL',
+        currentRetailPrice: 89.99,
+        historicalRetailLow: 89.99,
+        steamDiscountPercent: 65,
+        coverUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1086940/header.jpg'
+      })
+    ]
+
+    for (const deal of fakeDeals) {
+      deps.notificationService.notifyDeal(deal)
+      await sleep(1500)
+    }
+  })
+}
+
+function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
+  return {
+    appId: null,
+    title: 'Jogo de teste',
+    genres: [],
+    ggDealsUrl: '',
+    currency: 'BRL',
+    currentRetailPrice: null,
+    currentKeyshopPrice: null,
+    historicalRetailLow: null,
+    historicalKeyshopLow: null,
+    steamPrice: null,
+    steamDiscountPercent: null,
+    firstSeenAt: new Date().toISOString(),
+    ...overrides
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

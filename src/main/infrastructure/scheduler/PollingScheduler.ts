@@ -11,6 +11,7 @@ export class PollingScheduler {
     this.currentIntervalMinutes = intervalMinutes
     this.timer = setInterval(() => this.runTick(), intervalMinutes * 60 * 1000)
     logger.info(`Polling iniciado a cada ${intervalMinutes} minutos.`)
+    void this.runTick()
   }
 
   stop(): void {

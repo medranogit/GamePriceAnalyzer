@@ -1,8 +1,9 @@
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice } from '@shared/dealPricing'
+import { getBestCurrentPrice, qualifiesAsDeal } from '@shared/dealPricing'
 import type { FetchOwnableDeals } from './FetchOwnableDeals'
 import type { NotifiedDealsRepository } from '../repositories/NotifiedDealsRepository'
 import type { HistoryRepository } from '../repositories/HistoryRepository'
+import type { SettingsRepository } from '../repositories/SettingsRepository'
 
 export interface NotificationService {
   notifyDeal(deal: GameDeal): void
@@ -10,24 +11,28 @@ export interface NotificationService {
 
 /**
  * Executado a cada tick do polling em background. Reaproveita FetchOwnableDeals
- * e só dispara notificação uma vez por preço — só notifica de novo se o preço
- * cair ainda mais.
+ * (que traz TUDO, sem filtro) e só notifica quem realmente vale a pena —
+ * desconto mínimo configurado OU menor preço histórico do GG.deals — e uma
+ * vez por preço (só notifica de novo se o preço cair ainda mais).
  */
 export class CheckDealAlerts {
   constructor(
     private readonly fetchOwnableDeals: FetchOwnableDeals,
     private readonly notifiedDealsRepository: NotifiedDealsRepository,
     private readonly notificationService: NotificationService,
-    private readonly historyRepository: HistoryRepository
+    private readonly historyRepository: HistoryRepository,
+    private readonly settingsRepository: SettingsRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
     const deals = await this.fetchOwnableDeals.execute()
+    const { minDiscountPercent } = this.settingsRepository.get().filters
     const newlyNotified: GameDeal[] = []
 
     for (const deal of deals) {
       const best = getBestCurrentPrice(deal)
       if (deal.appId === null || !best) continue
+      if (!qualifiesAsDeal(deal, minDiscountPercent)) continue
 
       const price = best.price
       if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, price)) continue

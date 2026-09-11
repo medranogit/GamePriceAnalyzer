@@ -1,42 +1,33 @@
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
 import { preserveFirstSeenAt } from '../dealOrdering'
 import type { DealsRepository } from '../repositories/DealsRepository'
-import type { SteamSpecialsRepository } from '../repositories/SteamSpecialsRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { PriceHistoryRepository } from '../repositories/PriceHistoryRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
-import type { SettingsRepository } from '../repositories/SettingsRepository'
 
 /**
- * Orquestra o fluxo principal do app: descobre candidatos (wishlist, ou
- * promoções ativas na Steam), cruza preço/histórico no GG.deals, descarta o
- * que o usuário já possui, e aplica os filtros de desconto/gênero/wishlist.
+ * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
+ * preço/histórico no GG.deals, e descarta o que o usuário já possui — antes
+ * de gastar cota da API com isso.
  *
- * Nota: a Prices API do GG.deals não devolve percentual de desconto nem preço
- * "cheio" — só currentRetail/currentKeyshops e o histórico de cada um. Por
- * isso o filtro de desconto mínimo aceita a oferta em duas situações: (a) a
- * própria Steam está com desconto igual ou acima do mínimo configurado, OU
- * (b) o preço atual já bate o menor preço histórico que o GG.deals registrou
- * — sinal de "ótima oferta" que não depende de a Steam estar com desconto.
+ * Não filtra por desconto/keyshop/gênero aqui: a busca sempre traz TODOS os
+ * candidatos (a API não é influenciada pelos filtros de exibição), e quem
+ * decide o que aparecer na tela é o renderer, na hora, sem precisar buscar
+ * de novo. A única filtragem que continua no domínio é "vale notificar",
+ * que é uma decisão de negócio (CheckDealAlerts), não de exibição.
  */
 export class FetchOwnableDeals {
   constructor(
     private readonly dealsRepository: DealsRepository,
-    private readonly steamSpecialsRepository: SteamSpecialsRepository,
     private readonly metadataRepository: GameMetadataRepository,
     private readonly priceHistoryRepository: PriceHistoryRepository,
-    private readonly cacheRepository: AppCacheRepository,
-    private readonly settingsRepository: SettingsRepository
+    private readonly cacheRepository: AppCacheRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
-    const settings = this.settingsRepository.get()
     const ownedAppIds = new Set(this.cacheRepository.getOwnedGames().map((g) => g.appId))
 
-    const allCandidateAppIds = settings.filters.wishlistOnlyMode
-      ? this.cacheRepository.getWishlist().map((w) => w.appId)
-      : (await this.steamSpecialsRepository.fetchCurrentSpecials()).map((s) => s.appId)
+    const allCandidateAppIds = this.cacheRepository.getWishlist().map((w) => w.appId)
 
     // Descarta o que já é possuído antes de gastar cota da API do GG.deals com isso.
     const candidateAppIds = allCandidateAppIds.filter((appId) => !ownedAppIds.has(appId))
@@ -58,28 +49,8 @@ export class FetchOwnableDeals {
 
     const enriched = await this.enrichWithMetadata(deals)
 
-    const aboveMinDiscount = enriched.filter((deal) => {
-      const hasEnoughSteamDiscount = (deal.steamDiscountPercent ?? 0) >= settings.filters.minDiscountPercent
-      return hasEnoughSteamDiscount || this.isAtHistoricalLow(deal)
-    })
-
-    const withKeyshopFilter = settings.filters.includeKeyshops
-      ? aboveMinDiscount
-      : aboveMinDiscount.map((deal) => ({ ...deal, currentKeyshopPrice: null, historicalKeyshopLow: null }))
-
-    const finalDeals =
-      settings.filters.selectedGenres.length === 0
-        ? withKeyshopFilter
-        : withKeyshopFilter.filter((deal) => deal.genres.some((genre) => settings.filters.selectedGenres.includes(genre)))
-
-    this.cacheRepository.setDeals(finalDeals)
-    return finalDeals
-  }
-
-  private isAtHistoricalLow(deal: GameDeal): boolean {
-    const best = getBestCurrentPrice(deal)
-    const historicalLow = getBestHistoricalLow(deal)
-    return best !== null && historicalLow !== null && best.price <= historicalLow
+    this.cacheRepository.setDeals(enriched)
+    return enriched
   }
 
   private async enrichWithMetadata(deals: GameDeal[]): Promise<GameDeal[]> {

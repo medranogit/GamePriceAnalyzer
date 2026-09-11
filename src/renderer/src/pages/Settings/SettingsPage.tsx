@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, Card, Divider, Form, Input, InputNumber, Space, Switch, TimePicker, Typography, message } from 'antd'
-import { FolderOpenOutlined } from '@ant-design/icons'
+import { FolderOpenOutlined, NotificationOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
@@ -15,6 +15,7 @@ export function SettingsPage() {
   const setSteamApiKey = useSetSteamApiKey()
   const setGGDealsApiKey = useSetGGDealsApiKey()
   const importWishlist = useImportWishlist()
+  const [testingNotifications, setTestingNotifications] = useState(false)
 
   const [steamId64Input, setSteamId64Input] = useState('')
   const [steamApiKeyInput, setSteamApiKeyInput] = useState('')
@@ -174,6 +175,28 @@ export function SettingsPage() {
               checked={settings.autoStartOnBoot}
               onChange={(checked) => updateSettings.mutate({ autoStartOnBoot: checked })}
             />
+          </Form.Item>
+
+          <Form.Item
+            label="Testar notificação"
+            extra="Dispara 3 notificações de mentira, espaçadas, pra você ver o visual. Respeita o modo silencioso configurado acima."
+          >
+            <Button
+              icon={<NotificationOutlined />}
+              loading={testingNotifications}
+              onClick={async () => {
+                setTestingNotifications(true)
+                try {
+                  await window.api.notifications.test()
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setTestingNotifications(false)
+                }
+              }}
+            >
+              Disparar 3 notificações de teste
+            </Button>
           </Form.Item>
         </Form>
       </Card>

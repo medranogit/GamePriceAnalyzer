@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Typography, message } from 'antd'
+import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Tag, Typography, message } from 'antd'
 import { ReloadOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAddWishlistItem, useRemoveWishlistItem, useWishlist, useWishlistPrices } from '@renderer/hooks/useWishlist'
@@ -122,8 +122,11 @@ export function WishlistPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           Wishlist
+          {wishlist.length > 0 && (
+            <Tag color="blue">{filterTerm ? `${rows.length} de ${wishlist.length}` : wishlist.length} jogos</Tag>
+          )}
         </Title>
         <Button
           type="primary"

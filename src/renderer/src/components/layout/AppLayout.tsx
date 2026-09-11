@@ -4,8 +4,7 @@ import {
   DatabaseOutlined,
   HeartOutlined,
   HistoryOutlined,
-  SettingOutlined,
-  TagsOutlined
+  SettingOutlined
 } from '@ant-design/icons'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
@@ -32,7 +31,6 @@ const menuItems = [
   { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Ofertas</Link> },
   { key: '/library', icon: <DatabaseOutlined />, label: <Link to="/library">Minha Biblioteca</Link> },
   { key: '/wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Wishlist</Link> },
-  { key: '/genres', icon: <TagsOutlined />, label: <Link to="/genres">Gêneros</Link> },
   { key: '/history', icon: <HistoryOutlined />, label: <Link to="/history">Histórico</Link> },
   { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> }
 ]
