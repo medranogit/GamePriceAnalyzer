@@ -1,6 +1,7 @@
 import type { OwnedGame } from '@shared/types'
 import { logger } from '../logging/logger'
 import { fetchWithRetry } from '../http/fetchWithRetry'
+import { resolveSteamId64 } from './resolveSteamId64'
 
 interface SteamGetOwnedGamesResponse {
   response: {
@@ -11,14 +12,6 @@ interface SteamGetOwnedGamesResponse {
       playtime_forever: number
       img_icon_url?: string
     }>
-  }
-}
-
-interface ResolveVanityUrlResponse {
-  response: {
-    success: number
-    steamid?: string
-    message?: string
   }
 }
 
@@ -35,7 +28,7 @@ export class SteamWebApiClient {
       throw new Error('STEAM_API_KEY não configurada. Cadastre a chave em Configurações.')
     }
 
-    const resolvedSteamId64 = await this.resolveSteamId64(steamId64.trim(), apiKey)
+    const resolvedSteamId64 = await resolveSteamId64(steamId64)
 
     const url = new URL('https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/')
     url.searchParams.set('key', apiKey)
@@ -69,37 +62,5 @@ export class SteamWebApiClient {
         ? `https://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`
         : undefined
     }))
-  }
-
-  /**
-   * Aceita o SteamID64 puro, a URL de perfil (/profiles/<id> ou /id/<vanity>)
-   * ou só o nome personalizado, e sempre devolve o SteamID64 numérico.
-   */
-  private async resolveSteamId64(input: string, apiKey: string): Promise<string> {
-    if (/^\d{17}$/.test(input)) return input
-
-    const profileIdMatch = input.match(/\/profiles\/(\d{17})/)
-    if (profileIdMatch) return profileIdMatch[1]
-
-    const vanityMatch = input.match(/\/id\/([^/]+)/)
-    const vanityName = vanityMatch ? vanityMatch[1] : input
-
-    const url = new URL('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/')
-    url.searchParams.set('key', apiKey)
-    url.searchParams.set('vanityurl', vanityName)
-
-    const res = await fetchWithRetry(url)
-    if (!res.ok) {
-      throw new Error(`Falha ao resolver SteamID a partir de "${input}": HTTP ${res.status}`)
-    }
-
-    const data = (await res.json()) as ResolveVanityUrlResponse
-    if (data.response.success !== 1 || !data.response.steamid) {
-      throw new Error(
-        `Não encontrei um perfil Steam pra "${input}". Confira o SteamID64, a URL do perfil ou o nome personalizado em Configurações.`
-      )
-    }
-
-    return data.response.steamid
   }
 }

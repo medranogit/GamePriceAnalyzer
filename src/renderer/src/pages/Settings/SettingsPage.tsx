@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Button, Card, Divider, Form, Input, InputNumber, Space, Switch, TimePicker, Typography, message } from 'antd'
-import { FolderOpenOutlined, NotificationOutlined } from '@ant-design/icons'
+import { NotificationOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
-import { useImportWishlist } from '@renderer/hooks/useWishlist'
 
 const { Title, Text } = Typography
 
@@ -14,7 +13,6 @@ export function SettingsPage() {
   const { data: secretsStatus } = useSecretsStatus()
   const setSteamApiKey = useSetSteamApiKey()
   const setGGDealsApiKey = useSetGGDealsApiKey()
-  const importWishlist = useImportWishlist()
   const [testingNotifications, setTestingNotifications] = useState(false)
 
   const [steamId64Input, setSteamId64Input] = useState('')
@@ -25,17 +23,6 @@ export function SettingsPage() {
 
   const showError = (error: unknown): void => {
     message.error(error instanceof Error ? error.message : 'Algo deu errado.')
-  }
-
-  const handlePickWishlistFile = async (): Promise<void> => {
-    try {
-      const filePath = await window.api.app.pickWishlistFile()
-      if (!filePath) return
-      await importWishlist.mutateAsync(filePath)
-      message.success('Wishlist importada com sucesso.')
-    } catch (error) {
-      showError(error)
-    }
   }
 
   return (
@@ -88,15 +75,6 @@ export function SettingsPage() {
                 Salvar
               </Button>
             </Space.Compact>
-          </Form.Item>
-
-          <Form.Item label="Wishlist exportada (.json)">
-            <Space>
-              <Button icon={<FolderOpenOutlined />} onClick={handlePickWishlistFile} loading={importWishlist.isPending}>
-                Selecionar e importar arquivo
-              </Button>
-              {settings.wishlistFilePath && <Text type="secondary">{settings.wishlistFilePath}</Text>}
-            </Space>
           </Form.Item>
         </Form>
       </Card>

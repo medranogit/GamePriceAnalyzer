@@ -1,13 +1,13 @@
-import { ipcMain, dialog, type BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import type { AppSettings, GameDeal } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
 import type { SettingsRepository } from '../domain/repositories/SettingsRepository'
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
 import type { SyncSteamLibrary } from '../domain/use-cases/SyncSteamLibrary'
-import type { ImportWishlist } from '../domain/use-cases/ImportWishlist'
 import type { AddWishlistItem } from '../domain/use-cases/AddWishlistItem'
 import type { RemoveWishlistItem } from '../domain/use-cases/RemoveWishlistItem'
 import type { RefreshWishlistPrices } from '../domain/use-cases/RefreshWishlistPrices'
+import type { SyncSteamWishlist } from '../domain/use-cases/SyncSteamWishlist'
 import type { SteamSearchRepository } from '../domain/repositories/SteamSearchRepository'
 import type { PollingScheduler } from '../infrastructure/scheduler/PollingScheduler'
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
@@ -21,15 +21,14 @@ interface Dependencies {
   historyRepository: HistoryRepository
   notificationService: NotificationService
   syncSteamLibrary: SyncSteamLibrary
-  importWishlist: ImportWishlist
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
   refreshWishlistPrices: RefreshWishlistPrices
+  syncSteamWishlist: SyncSteamWishlist
   steamSearchRepository: SteamSearchRepository
   scheduler: PollingScheduler
   secretsStore: SecretsStore
   autoLaunchService: AutoLaunchService
-  getMainWindow: () => BrowserWindow | null
 }
 
 export function registerIpcHandlers(deps: Dependencies): void {
@@ -58,23 +57,19 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.wishlistGetCached, () => deps.cacheRepository.getWishlist())
 
-  ipcMain.handle(IPC_CHANNELS.wishlistImport, async (_event, filePath?: string) => {
-    const settings = deps.settingsRepository.get()
-    const path = filePath ?? settings.wishlistFilePath
-    if (!path) {
-      throw new Error('Nenhum arquivo de wishlist selecionado.')
-    }
-    if (filePath) {
-      deps.settingsRepository.update({ wishlistFilePath: filePath })
-    }
-    return deps.importWishlist.execute(path)
-  })
-
   ipcMain.handle(IPC_CHANNELS.wishlistAdd, (_event, appId: number) => deps.addWishlistItem.execute(appId))
 
   ipcMain.handle(IPC_CHANNELS.wishlistRemove, (_event, appId: number) => deps.removeWishlistItem.execute(appId))
 
   ipcMain.handle(IPC_CHANNELS.wishlistRefreshPrices, () => deps.refreshWishlistPrices.execute())
+
+  ipcMain.handle(IPC_CHANNELS.wishlistSyncFromSteam, async () => {
+    const settings = deps.settingsRepository.get()
+    if (!settings.steamId64) {
+      throw new Error('SteamID64 não configurado. Cadastre em Configurações.')
+    }
+    return deps.syncSteamWishlist.execute(settings.steamId64)
+  })
 
   ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) => deps.steamSearchRepository.searchGames(query))
 
@@ -83,17 +78,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
   ipcMain.handle(IPC_CHANNELS.wishlistDealsGetCached, () => deps.cacheRepository.getWishlistDeals())
 
   ipcMain.handle(IPC_CHANNELS.pollingTriggerNow, () => deps.scheduler.runNow())
-
-  ipcMain.handle(IPC_CHANNELS.pickWishlistFile, async () => {
-    const window = deps.getMainWindow()
-    if (!window) return null
-    const result = await dialog.showOpenDialog(window, {
-      title: 'Selecionar wishlist.json exportado',
-      filters: [{ name: 'JSON', extensions: ['json'] }],
-      properties: ['openFile']
-    })
-    return result.canceled ? null : result.filePaths[0]
-  })
 
   ipcMain.handle(IPC_CHANNELS.secretsStatus, () => ({
     hasSteamApiKey: Boolean(deps.secretsStore.get('steamApiKey')),

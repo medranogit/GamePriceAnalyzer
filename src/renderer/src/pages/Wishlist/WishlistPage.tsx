@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react'
-import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Tag, Typography, message } from 'antd'
-import { ReloadOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Tag, Tooltip, Typography, message } from 'antd'
+import { CloudSyncOutlined, ReloadOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { useAddWishlistItem, useRemoveWishlistItem, useWishlist, useWishlistPrices } from '@renderer/hooks/useWishlist'
+import {
+  useAddWishlistItem,
+  useRemoveWishlistItem,
+  useSyncSteamWishlist,
+  useWishlist,
+  useWishlistPrices
+} from '@renderer/hooks/useWishlist'
+import { useSettings } from '@renderer/hooks/useSettings'
 import { useSteamSearch } from '@renderer/hooks/useSteamSearch'
 import { useDebouncedValue } from '@renderer/hooks/useDebouncedValue'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
@@ -22,9 +29,11 @@ interface Row {
 
 export function WishlistPage() {
   const navigate = useNavigate()
+  const { data: settings } = useSettings()
   const { data: wishlist = [], isLoading } = useWishlist()
   const addItem = useAddWishlistItem()
   const removeItem = useRemoveWishlistItem()
+  const syncFromSteam = useSyncSteamWishlist()
   const refreshPrices = useWishlistPrices()
 
   const [addSearchTerm, setAddSearchTerm] = useState('')
@@ -128,19 +137,42 @@ export function WishlistPage() {
             <Tag color="blue">{filterTerm ? `${rows.length} de ${wishlist.length}` : wishlist.length} jogos</Tag>
           )}
         </Title>
-        <Button
-          type="primary"
-          icon={<ReloadOutlined />}
-          loading={refreshPrices.isPending}
-          disabled={wishlist.length === 0}
-          onClick={() =>
-            refreshPrices.mutate(undefined, {
-              onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao atualizar preços.')
-            })
-          }
-        >
-          Atualizar preços
-        </Button>
+        <Space>
+          <Tooltip
+            title={
+              settings?.steamId64
+                ? 'Busca sua wishlist direto da Steam (a primeira vez pode demorar por causa do limite deles).'
+                : 'Configure seu SteamID64 em Configurações primeiro.'
+            }
+          >
+            <Button
+              icon={<CloudSyncOutlined />}
+              loading={syncFromSteam.isPending}
+              disabled={!settings?.steamId64}
+              onClick={() =>
+                syncFromSteam.mutate(undefined, {
+                  onSuccess: (items) => message.success(`Wishlist sincronizada: ${items.length} jogos.`),
+                  onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao sincronizar com a Steam.')
+                })
+              }
+            >
+              Sincronizar com a Steam
+            </Button>
+          </Tooltip>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={refreshPrices.isPending}
+            disabled={wishlist.length === 0}
+            onClick={() =>
+              refreshPrices.mutate(undefined, {
+                onError: (error) => message.error(error instanceof Error ? error.message : 'Falha ao atualizar preços.')
+              })
+            }
+          >
+            Atualizar preços
+          </Button>
+        </Space>
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>

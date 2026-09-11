@@ -10,16 +10,6 @@ export function useWishlist() {
   })
 }
 
-export function useImportWishlist() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (filePath?: string) => window.api.wishlist.import(filePath),
-    onSuccess: (items) => {
-      queryClient.setQueryData(WISHLIST_KEY, items)
-    }
-  })
-}
-
 export function useAddWishlistItem() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -34,6 +24,16 @@ export function useRemoveWishlistItem() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (appId: number) => window.api.wishlist.remove(appId),
+    onSuccess: (items) => {
+      queryClient.setQueryData(WISHLIST_KEY, items)
+    }
+  })
+}
+
+export function useSyncSteamWishlist() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => window.api.wishlist.syncFromSteam(),
     onSuccess: (items) => {
       queryClient.setQueryData(WISHLIST_KEY, items)
     }

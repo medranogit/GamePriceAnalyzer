@@ -12,7 +12,7 @@ import { SteamWebApiClient } from './infrastructure/steam/SteamWebApiClient'
 import { SteamLibraryRepositoryImpl } from './infrastructure/steam/SteamLibraryRepositoryImpl'
 import { SteamStoreMetadataRepositoryImpl } from './infrastructure/steam/SteamStoreMetadataRepositoryImpl'
 import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
-import { WishlistJsonRepositoryImpl } from './infrastructure/wishlist/WishlistJsonRepositoryImpl'
+import { SteamWishlistRepositoryImpl } from './infrastructure/steam/SteamWishlistRepositoryImpl'
 import { GGDealsApiClient } from './infrastructure/ggdeals/GGDealsApiClient'
 import { DealsRepositoryImpl } from './infrastructure/ggdeals/DealsRepositoryImpl'
 import { ElectronNotificationService } from './infrastructure/notifications/ElectronNotificationService'
@@ -22,10 +22,10 @@ import { AutoLaunchService } from './infrastructure/autostart/AutoLaunchService'
 import { JsonPriceHistoryRepository } from './infrastructure/storage/JsonPriceHistoryRepository'
 import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository'
 import { SyncSteamLibrary } from './domain/use-cases/SyncSteamLibrary'
-import { ImportWishlist } from './domain/use-cases/ImportWishlist'
 import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
 import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
+import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
@@ -111,16 +111,15 @@ async function bootstrap(): Promise<void> {
 
   const steamClient = new SteamWebApiClient(() => secretsStore.get('steamApiKey'))
   const steamLibraryRepository = new SteamLibraryRepositoryImpl(steamClient)
-  const wishlistRepository = new WishlistJsonRepositoryImpl()
   const metadataRepository = new SteamStoreMetadataRepositoryImpl()
   const steamSearchRepository = new SteamSearchRepositoryImpl()
+  const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()
 
   const ggDealsClient = new GGDealsApiClient(() => secretsStore.get('ggDealsApiKey'))
   const dealsRepository = new DealsRepositoryImpl(ggDealsClient)
 
   const syncSteamLibrary = new SyncSteamLibrary(steamLibraryRepository, cacheRepository, historyRepository)
-  const importWishlist = new ImportWishlist(wishlistRepository, cacheRepository, historyRepository)
   const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository, historyRepository)
   const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
   const refreshWishlistPrices = new RefreshWishlistPrices(
@@ -128,6 +127,12 @@ async function bootstrap(): Promise<void> {
     metadataRepository,
     priceHistoryRepository,
     cacheRepository
+  )
+  const syncSteamWishlist = new SyncSteamWishlist(
+    steamWishlistRepository,
+    metadataRepository,
+    cacheRepository,
+    historyRepository
   )
   const fetchOwnableDeals = new FetchOwnableDeals(
     dealsRepository,
@@ -160,21 +165,35 @@ async function bootstrap(): Promise<void> {
 
   autoLaunchService.setEnabled(settingsRepository.get().autoStartOnBoot)
 
+  // Mantém a wishlist sempre atualizada sozinha — uma vez ao abrir, e depois 1x por dia.
+  // Sem necessidade de reimportar o JSON manualmente.
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000
+  const syncWishlistIfConfigured = async (): Promise<void> => {
+    const steamId64 = settingsRepository.get().steamId64
+    if (!steamId64) return
+    try {
+      await syncSteamWishlist.execute(steamId64)
+    } catch (error) {
+      logger.error('Falha ao sincronizar wishlist com a Steam', error)
+    }
+  }
+  void syncWishlistIfConfigured()
+  setInterval(() => void syncWishlistIfConfigured(), ONE_DAY_MS)
+
   registerIpcHandlers({
     settingsRepository,
     cacheRepository,
     historyRepository,
     syncSteamLibrary,
-    importWishlist,
     addWishlistItem,
     removeWishlistItem,
     refreshWishlistPrices,
+    syncSteamWishlist,
     steamSearchRepository,
     scheduler,
     secretsStore,
     autoLaunchService,
-    notificationService,
-    getMainWindow: () => mainWindow
+    notificationService
   })
 
   app.on('activate', () => {

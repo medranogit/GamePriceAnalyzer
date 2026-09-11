@@ -14,7 +14,6 @@ export interface PollingSettings {
 
 export interface AppSettings {
   steamId64: string | null
-  wishlistFilePath: string | null
   autoStartOnBoot: boolean
   filters: FilterSettings
   polling: PollingSettings
@@ -22,7 +21,6 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   steamId64: null,
-  wishlistFilePath: null,
   autoStartOnBoot: false,
   filters: {
     minDiscountPercent: 50,

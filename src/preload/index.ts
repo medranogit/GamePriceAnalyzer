@@ -22,11 +22,10 @@ const api = {
   },
   wishlist: {
     getCached: (): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistGetCached),
-    import: (filePath?: string): Promise<WishlistItem[]> =>
-      ipcRenderer.invoke(IPC_CHANNELS.wishlistImport, filePath),
     add: (appId: number): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistAdd, appId),
     remove: (appId: number): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistRemove, appId),
-    refreshPrices: (): Promise<WishlistPriceInfo[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistRefreshPrices)
+    refreshPrices: (): Promise<WishlistPriceInfo[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistRefreshPrices),
+    syncFromSteam: (): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistSyncFromSteam)
   },
   steam: {
     searchGames: (query: string): Promise<SteamSearchResult[]> =>
@@ -41,9 +40,6 @@ const api = {
   },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest)
-  },
-  app: {
-    pickWishlistFile: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.pickWishlistFile)
   },
   secrets: {
     status: (): Promise<{ hasSteamApiKey: boolean; hasGGDealsApiKey: boolean }> =>
