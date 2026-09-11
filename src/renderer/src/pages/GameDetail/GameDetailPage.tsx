@@ -1,22 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Descriptions, Empty, Tag, Typography } from 'antd'
 import { ArrowLeftOutlined, TrophyOutlined } from '@ant-design/icons'
-import styled from 'styled-components'
 import { useDeals } from '@renderer/hooks/useDeals'
+import { GameCover } from '@renderer/components/GameCover/GameCover'
+import { formatPrice } from '@renderer/lib/formatters'
 
 const { Title, Text } = Typography
-
-const Cover = styled.div<{ $url?: string }>`
-  height: 220px;
-  background: ${({ $url, theme }) => ($url ? `url(${$url}) center/cover` : theme.colors.surfaceRaised)};
-  border-radius: 10px;
-  margin-bottom: 16px;
-`
-
-function formatPrice(currency: string | null, value: number | null): string {
-  if (value === null) return '—'
-  return `${currency ?? ''} ${value.toFixed(2)}`.trim()
-}
 
 export function GameDetailPage() {
   const { appId } = useParams<{ appId: string }>()
@@ -51,7 +40,7 @@ export function GameDetailPage() {
         Voltar
       </Button>
 
-      <Cover $url={deal.coverUrl} />
+      <GameCover url={deal.coverUrl} height={220} radius={10} style={{ marginBottom: 16 }} />
 
       <Title level={2}>{deal.title}</Title>
       <div style={{ marginBottom: 16 }}>

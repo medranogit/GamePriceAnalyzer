@@ -43,7 +43,10 @@ export function SettingsPage() {
 
       <Card title="Conta Steam" style={{ marginBottom: 16 }}>
         <Form layout="vertical">
-          <Form.Item label="SteamID64" extra="Seu perfil precisa estar público para a sincronização funcionar.">
+          <Form.Item
+            label="SteamID64"
+            extra="Pode colar o número, a URL do perfil ou seu nome personalizado — o app resolve sozinho. Precisa estar público pra sincronização funcionar."
+          >
             <Space.Compact style={{ width: '100%' }}>
               <Input
                 placeholder={settings.steamId64 ?? 'ex: 76561198000000000'}
@@ -52,7 +55,9 @@ export function SettingsPage() {
               />
               <Button
                 type="primary"
-                onClick={() => updateSettings.mutate({ steamId64: steamId64Input }, { onError: showError })}
+                onClick={() =>
+                  updateSettings.mutate({ steamId64: steamId64Input.trim() }, { onError: showError })
+                }
                 disabled={!steamId64Input}
               >
                 Salvar
@@ -70,7 +75,7 @@ export function SettingsPage() {
               <Button
                 onClick={async () => {
                   try {
-                    await setSteamApiKey.mutateAsync(steamApiKeyInput)
+                    await setSteamApiKey.mutateAsync(steamApiKeyInput.trim())
                     setSteamApiKeyInput('')
                     message.success('Chave da Steam salva.')
                   } catch (error) {
@@ -107,7 +112,7 @@ export function SettingsPage() {
               <Button
                 onClick={async () => {
                   try {
-                    await setGGDealsApiKey.mutateAsync(ggDealsApiKeyInput)
+                    await setGGDealsApiKey.mutateAsync(ggDealsApiKeyInput.trim())
                     setGGDealsApiKeyInput('')
                     message.success('Chave do GG.deals salva.')
                   } catch (error) {

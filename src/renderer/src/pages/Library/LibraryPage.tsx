@@ -1,8 +1,10 @@
-import { Alert, Avatar, Button, Table, Typography } from 'antd'
-import { SyncOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { Alert, Avatar, Button, Input, Table, Tag, Typography } from 'antd'
+import { SearchOutlined, SyncOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import { useLibrary, useSyncLibrary } from '@renderer/hooks/useLibrary'
 import { useSettings } from '@renderer/hooks/useSettings'
+import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
 import type { OwnedGame } from '@shared/types'
 
 const { Title } = Typography
@@ -11,6 +13,9 @@ export function LibraryPage() {
   const { data: settings } = useSettings()
   const { data: games = [], isLoading } = useLibrary()
   const syncLibrary = useSyncLibrary()
+
+  const [filterTerm, setFilterTerm] = useState('')
+  const filteredGames = games.filter((game) => matchesSearchTokens(game.name, filterTerm))
 
   const columns = [
     {
@@ -32,8 +37,13 @@ export function LibraryPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           Minha biblioteca Steam
+          {games.length > 0 && (
+            <Tag color="blue">
+              {filterTerm ? `${filteredGames.length} de ${games.length}` : games.length} jogos
+            </Tag>
+          )}
         </Title>
         <Button
           type="primary"
@@ -59,10 +69,19 @@ export function LibraryPage() {
         />
       )}
 
+      <Input
+        style={{ width: 280, marginBottom: 16 }}
+        allowClear
+        prefix={<SearchOutlined />}
+        placeholder="Filtrar sua biblioteca..."
+        value={filterTerm}
+        onChange={(e) => setFilterTerm(e.target.value)}
+      />
+
       <Table
         rowKey="appId"
         loading={isLoading}
-        dataSource={games}
+        dataSource={filteredGames}
         columns={columns}
         pagination={{ pageSize: 20 }}
       />

@@ -1,23 +1,15 @@
 import { useMemo, useState } from 'react'
 import { AutoComplete, Avatar, Button, Input, Popconfirm, Space, Table, Typography, message } from 'antd'
 import { ReloadOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { useAddWishlistItem, useRemoveWishlistItem, useWishlist, useWishlistPrices } from '@renderer/hooks/useWishlist'
 import { useSteamSearch } from '@renderer/hooks/useSteamSearch'
 import { useDebouncedValue } from '@renderer/hooks/useDebouncedValue'
+import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
+import { formatPrice, formatDate } from '@renderer/lib/formatters'
 import type { WishlistItem, WishlistPriceInfo } from '@shared/types'
 
 const { Title, Text } = Typography
-
-function formatPrice(currency: string | null, value: number | null): string {
-  if (value === null) return '—'
-  return `${currency ?? ''} ${value.toFixed(2)}`.trim()
-}
-
-function formatDate(iso: string | null): string {
-  return iso ? dayjs(iso).format('DD/MM/YYYY') : ''
-}
 
 function steamCapsuleUrl(appId: number): string {
   return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_184x69.jpg`
@@ -48,7 +40,7 @@ export function WishlistPage() {
   }, [refreshPrices.data])
 
   const rows: Row[] = wishlist
-    .filter((item) => item.title.toLowerCase().includes(filterTerm.trim().toLowerCase()))
+    .filter((item) => matchesSearchTokens(item.title, filterTerm))
     .map((item) => ({ item, price: priceByAppId.get(item.appId) }))
 
   const columns = [

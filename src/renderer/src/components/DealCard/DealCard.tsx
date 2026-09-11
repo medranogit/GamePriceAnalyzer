@@ -4,6 +4,7 @@ import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import type { GameDeal } from '@shared/types'
 import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
+import { GameCover } from '@renderer/components/GameCover/GameCover'
 
 const CardWrapper = styled.div`
   position: relative;
@@ -25,13 +26,6 @@ const CardWrapper = styled.div`
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
     border-color: ${({ theme }) => theme.colors.primary};
   }
-`
-
-const Cover = styled.div<{ $url?: string }>`
-  position: relative;
-  height: 140px;
-  flex-shrink: 0;
-  background: ${({ $url, theme }) => ($url ? `url(${$url}) center/cover` : theme.colors.surface)};
 `
 
 const DiscountRibbon = styled.div`
@@ -122,7 +116,7 @@ export function DealCard({ deal }: DealCardProps) {
 
   return (
     <CardWrapper onClick={() => deal.appId && navigate(`/game/${deal.appId}`)}>
-      <Cover $url={deal.coverUrl}>
+      <GameCover url={deal.coverUrl} height={140}>
         {isHistoricalLow && (
           <HistoricalRibbon>
             <TrophyOutlined /> Menor histórico
@@ -131,7 +125,7 @@ export function DealCard({ deal }: DealCardProps) {
         {deal.steamDiscountPercent !== null && deal.steamDiscountPercent > 0 && (
           <DiscountRibbon>-{deal.steamDiscountPercent}%</DiscountRibbon>
         )}
-      </Cover>
+      </GameCover>
 
       <Body>
         <GameTitle title={deal.title}>{deal.title}</GameTitle>

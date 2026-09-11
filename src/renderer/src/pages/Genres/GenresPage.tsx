@@ -1,15 +1,10 @@
 import { Card, Col, Empty, Row, Typography } from 'antd'
-import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
+import { GameCover } from '@renderer/components/GameCover/GameCover'
 
 const { Title, Text } = Typography
-
-const Cover = styled.div<{ $url?: string }>`
-  height: 120px;
-  background: ${({ $url, theme }) => ($url ? `url(${$url}) center/cover` : theme.colors.surfaceRaised)};
-`
 
 interface GenreSummary {
   name: string
@@ -54,7 +49,7 @@ export function GenresPage() {
             <Col key={genre.name} xs={24} sm={12} md={8} lg={6}>
               <Card
                 hoverable
-                cover={<Cover $url={genre.coverUrl} />}
+                cover={<GameCover url={genre.coverUrl} height={120} />}
                 onClick={() => handleSelectGenre(genre.name)}
               >
                 <Card.Meta title={genre.name} description={<Text type="secondary">{genre.count} ofertas</Text>} />
