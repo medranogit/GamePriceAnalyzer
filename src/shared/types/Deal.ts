@@ -11,6 +11,8 @@ export interface GameDeal {
   historicalKeyshopLow: number | null
   steamPrice: number | null
   steamDiscountPercent: number | null
+  /** Preço "cheio" da Steam, sem desconto ativo — referência pra calcular economia em keyshops. */
+  steamFullPrice: number | null
   /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
   firstSeenAt: string
 }

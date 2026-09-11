@@ -35,6 +35,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     historicalKeyshopLow: null,
     steamPrice: null,
     steamDiscountPercent: null,
+    steamFullPrice: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -101,7 +102,8 @@ describe('FetchOwnableDeals', () => {
       genres: ['RPG'],
       headerImageUrl: 'https://example.com/cover.jpg',
       steamPrice: 99.9,
-      steamDiscountPercent: 40
+      steamDiscountPercent: 40,
+      steamFullPrice: 99.9
     }
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
@@ -131,7 +133,8 @@ describe('FetchOwnableDeals', () => {
       genres: ['Ação'],
       headerImageUrl: null,
       steamPrice: null,
-      steamDiscountPercent: null
+      steamDiscountPercent: null,
+      steamFullPrice: null
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [

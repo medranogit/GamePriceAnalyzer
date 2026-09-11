@@ -49,8 +49,8 @@ export function FilterBar({
         <FiltersGroup size="large" align="center">
           <Space direction="vertical" size={0}>
             <Text type="secondary">
-              Desconto mínimo (Steam): {filters.minDiscountPercent}%{' '}
-              <Tooltip title="Uma oferta também passa se o preço atual já bater o menor preço histórico do GG.deals, mesmo sem desconto ativo na Steam.">
+              Desconto mínimo: {filters.minDiscountPercent}%{' '}
+              <Tooltip title="Compara o melhor preço atual (loja oficial ou keyshop) contra o preço cheio da Steam — já que o GG.deals não informa desconto % por loja. Deixe em 0% pra ver tudo que está na wishlist, sem filtrar por desconto.">
                 <InfoCircleOutlined />
               </Tooltip>
             </Text>

@@ -3,6 +3,8 @@ import type { GameDeal } from './types'
 import {
   getBestCurrentPrice,
   getBestHistoricalLow,
+  getDisplayDiscountPercent,
+  getEffectiveDiscountPercent,
   isAtOrBelowHistoricalLow,
   qualifiesAsDeal
 } from './dealPricing'
@@ -20,6 +22,7 @@ function makeDeal(overrides: Partial<GameDeal> = {}): GameDeal {
     historicalKeyshopLow: null,
     steamPrice: null,
     steamDiscountPercent: null,
+    steamFullPrice: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -74,6 +77,40 @@ describe('isAtOrBelowHistoricalLow', () => {
   })
 })
 
+describe('getEffectiveDiscountPercent', () => {
+  it('null quando não há preço cheio da Steam pra comparar', () => {
+    const deal = makeDeal({ currentKeyshopPrice: 50, steamFullPrice: null })
+    expect(getEffectiveDiscountPercent(deal)).toBeNull()
+  })
+
+  it('null quando não há preço atual nenhum', () => {
+    const deal = makeDeal({ steamFullPrice: 100 })
+    expect(getEffectiveDiscountPercent(deal)).toBeNull()
+  })
+
+  it('calcula a economia da keyshop contra o preço cheio da Steam, mesmo sem desconto ativo na Steam', () => {
+    // Ex: TerraTech por R$10,43 na G2Play vs. preço cheio de R$99,90 na Steam.
+    const deal = makeDeal({ currentKeyshopPrice: 10.43, steamFullPrice: 99.9, steamDiscountPercent: null })
+    expect(getEffectiveDiscountPercent(deal)).toBe(90)
+  })
+})
+
+describe('getDisplayDiscountPercent', () => {
+  it('usa o desconto efetivo (vs. preço cheio) quando disponível', () => {
+    const deal = makeDeal({ currentKeyshopPrice: 50, steamFullPrice: 100, steamDiscountPercent: 5 })
+    expect(getDisplayDiscountPercent(deal)).toBe(50)
+  })
+
+  it('cai pro desconto da Steam quando não dá pra calcular o efetivo', () => {
+    const deal = makeDeal({ steamDiscountPercent: 30, steamFullPrice: null })
+    expect(getDisplayDiscountPercent(deal)).toBe(30)
+  })
+
+  it('zero quando não há nenhuma informação de desconto', () => {
+    expect(getDisplayDiscountPercent(makeDeal())).toBe(0)
+  })
+})
+
 describe('qualifiesAsDeal', () => {
   it('qualifica quando o desconto da Steam atinge o mínimo', () => {
     const deal = makeDeal({ steamDiscountPercent: 50 })
@@ -87,6 +124,11 @@ describe('qualifiesAsDeal', () => {
 
   it('qualifica pelo menor preço histórico mesmo sem desconto suficiente na Steam', () => {
     const deal = makeDeal({ steamDiscountPercent: 10, currentRetailPrice: 40, historicalRetailLow: 40 })
+    expect(qualifiesAsDeal(deal, 50)).toBe(true)
+  })
+
+  it('qualifica por desconto forte de keyshop mesmo sem desconto ativo na Steam', () => {
+    const deal = makeDeal({ currentKeyshopPrice: 10.43, steamFullPrice: 99.9, steamDiscountPercent: null })
     expect(qualifiesAsDeal(deal, 50)).toBe(true)
   })
 

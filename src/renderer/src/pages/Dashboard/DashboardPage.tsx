@@ -5,7 +5,7 @@ import { DealCard } from '@renderer/components/DealCard/DealCard'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
-import { getBestCurrentPrice, qualifiesAsDeal } from '@shared/dealPricing'
+import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
 import type { FilterSettings } from '@shared/types'
 
 const { Title } = Typography
@@ -33,7 +33,7 @@ export function DashboardPage() {
   const filteredDeals = filters
     ? deals
         .filter((deal) => matchesSearchTokens(deal.title, searchTerm))
-        .filter((deal) => qualifiesAsDeal(deal, filters.minDiscountPercent))
+        .filter((deal) => getDisplayDiscountPercent(deal) >= filters.minDiscountPercent)
         .map((deal) =>
           filters.includeKeyshops ? deal : { ...deal, currentKeyshopPrice: null, historicalKeyshopLow: null }
         )

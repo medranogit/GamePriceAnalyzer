@@ -21,6 +21,9 @@ sem notificar de jogos que você já possui na Steam.
 - **Histórico de eventos** (sincronizações, ofertas encontradas, etc.).
 - Roda minimizado na bandeja do sistema, com opção de iniciar junto com o Windows.
 
+Quer entender o passo a passo de cada fluxo (sincronização, busca de ofertas, regra de desconto,
+notificações, onde cada dado fica salvo)? Veja [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
+
 ## Stack
 
 - [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) + React + TypeScript

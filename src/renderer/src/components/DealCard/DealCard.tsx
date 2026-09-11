@@ -3,7 +3,7 @@ import { ShopOutlined, KeyOutlined, TrophyOutlined } from '@ant-design/icons'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
+import { getBestCurrentPrice, getBestHistoricalLow, getDisplayDiscountPercent } from '@shared/dealPricing'
 import { GameCover } from '@renderer/components/GameCover/GameCover'
 
 const CardWrapper = styled.div`
@@ -113,6 +113,7 @@ export function DealCard({ deal }: DealCardProps) {
   const best = getBestCurrentPrice(deal)
   const historicalLow = getBestHistoricalLow(deal)
   const isHistoricalLow = best !== null && historicalLow !== null && best.price <= historicalLow
+  const displayDiscountPercent = getDisplayDiscountPercent(deal)
 
   return (
     <CardWrapper onClick={() => deal.appId && navigate(`/game/${deal.appId}`)}>
@@ -122,9 +123,7 @@ export function DealCard({ deal }: DealCardProps) {
             <TrophyOutlined /> Menor histórico
           </HistoricalRibbon>
         )}
-        {deal.steamDiscountPercent !== null && deal.steamDiscountPercent > 0 && (
-          <DiscountRibbon>-{deal.steamDiscountPercent}%</DiscountRibbon>
-        )}
+        {displayDiscountPercent > 0 && <DiscountRibbon>-{displayDiscountPercent}%</DiscountRibbon>}
       </GameCover>
 
       <Body>

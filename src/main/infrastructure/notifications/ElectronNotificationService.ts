@@ -1,6 +1,6 @@
 import { Notification, nativeImage, type BrowserWindow } from 'electron'
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice } from '@shared/dealPricing'
+import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
 import type { NotificationService } from '../../domain/use-cases/CheckDealAlerts'
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
@@ -60,7 +60,8 @@ export class ElectronNotificationService implements NotificationService {
   private async show(deal: GameDeal): Promise<void> {
     const best = getBestCurrentPrice(deal)
     const priceText = best ? `${deal.currency} ${best.price.toFixed(2)} · ${best.label}` : 'Oferta encontrada'
-    const discountText = deal.steamDiscountPercent ? ` (-${deal.steamDiscountPercent}%)` : ''
+    const displayDiscountPercent = getDisplayDiscountPercent(deal)
+    const discountText = displayDiscountPercent > 0 ? ` (-${displayDiscountPercent}%)` : ''
 
     const icon = (await fetchIcon(deal.coverUrl)) ?? nativeImage.createFromPath(getAppIconPath())
 

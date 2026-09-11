@@ -29,8 +29,26 @@ export function isAtOrBelowHistoricalLow(deal: GameDeal): boolean {
   return best !== null && historicalLow !== null && best.price <= historicalLow
 }
 
-/** Vale notificar/considerar "oferta boa": desconto mínimo na Steam OU menor preço histórico do GG.deals. */
+/**
+ * A API do GG.deals não devolve porcentagem de desconto por loja (só preço
+ * atual e menor histórico). Pra enxergar desconto forte de keyshop — que não
+ * aparece no `steamDiscountPercent` (esse é só o desconto ativo na própria
+ * Steam) — comparamos o melhor preço atual (loja oficial ou keyshop) contra o
+ * preço cheio (sem desconto) da Steam, único "preço de tabela" que temos.
+ */
+export function getEffectiveDiscountPercent(deal: GameDeal): number | null {
+  const best = getBestCurrentPrice(deal)
+  if (!best || deal.steamFullPrice === null || deal.steamFullPrice <= 0) return null
+  const percent = ((deal.steamFullPrice - best.price) / deal.steamFullPrice) * 100
+  return Math.round(percent)
+}
+
+/** Melhor estimativa de desconto pra exibição/filtro: o efetivo (vs. preço cheio da Steam) ou, na falta dele, o da própria Steam. */
+export function getDisplayDiscountPercent(deal: GameDeal): number {
+  return getEffectiveDiscountPercent(deal) ?? deal.steamDiscountPercent ?? 0
+}
+
+/** Vale notificar/considerar "oferta boa": desconto mínimo (efetivo ou da Steam) OU menor preço histórico do GG.deals. */
 export function qualifiesAsDeal(deal: GameDeal, minDiscountPercent: number): boolean {
-  const hasEnoughSteamDiscount = (deal.steamDiscountPercent ?? 0) >= minDiscountPercent
-  return hasEnoughSteamDiscount || isAtOrBelowHistoricalLow(deal)
+  return getDisplayDiscountPercent(deal) >= minDiscountPercent || isAtOrBelowHistoricalLow(deal)
 }

@@ -139,6 +139,7 @@ export class GGDealsApiClient {
         historicalKeyshopLow: toNumberOrNull(entry.prices.historicalKeyshops),
         steamPrice: null,
         steamDiscountPercent: null,
+        steamFullPrice: null,
         firstSeenAt: new Date().toISOString()
       })
     }

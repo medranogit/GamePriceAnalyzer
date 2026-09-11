@@ -13,7 +13,7 @@ import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
 import { useDealsFoundListener } from '@renderer/hooks/useDeals'
 import { playAlertSound } from '@renderer/lib/playAlertSound'
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice } from '@shared/dealPricing'
+import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
 
 const NotificationRow = styled.div`
   display: flex;
@@ -58,7 +58,8 @@ export function App() {
     (deal: GameDeal) => {
       playAlertSound()
       const best = getBestCurrentPrice(deal)
-      const discountText = deal.steamDiscountPercent ? ` (-${deal.steamDiscountPercent}%)` : ''
+      const displayDiscountPercent = getDisplayDiscountPercent(deal)
+      const discountText = displayDiscountPercent > 0 ? ` (-${displayDiscountPercent}%)` : ''
       const priceText = best
         ? `${deal.currency} ${best.price.toFixed(2)} (${best.label})${discountText}`
         : 'Nova oferta encontrada'

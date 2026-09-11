@@ -5,4 +5,6 @@ export interface GameMetadata {
   headerImageUrl: string | null
   steamPrice: number | null
   steamDiscountPercent: number | null
+  /** Preço "cheio" da Steam, sem desconto ativo — referência pra calcular economia em keyshops. */
+  steamFullPrice: number | null
 }

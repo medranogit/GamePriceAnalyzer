@@ -72,7 +72,8 @@ export class FetchOwnableDeals {
         genres: metadata?.genres ?? deal.genres,
         coverUrl: deal.coverUrl ?? metadata?.headerImageUrl ?? undefined,
         steamPrice: metadata?.steamPrice ?? null,
-        steamDiscountPercent: metadata?.steamDiscountPercent ?? null
+        steamDiscountPercent: metadata?.steamDiscountPercent ?? null,
+        steamFullPrice: metadata?.steamFullPrice ?? null
       })
     }
     return enriched
