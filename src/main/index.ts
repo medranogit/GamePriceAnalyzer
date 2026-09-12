@@ -21,6 +21,8 @@ import { TrayController } from './infrastructure/tray/TrayController'
 import { AutoLaunchService } from './infrastructure/autostart/AutoLaunchService'
 import { JsonPriceHistoryRepository } from './infrastructure/storage/JsonPriceHistoryRepository'
 import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository'
+import { JsonPollingStateRepository } from './infrastructure/storage/JsonPollingStateRepository'
+import { JsonSessionLogRepository } from './infrastructure/storage/JsonSessionLogRepository'
 import { SyncSteamLibrary } from './domain/use-cases/SyncSteamLibrary'
 import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
@@ -105,8 +107,12 @@ function createMainWindow(): BrowserWindow {
 }
 
 async function bootstrap(): Promise<void> {
+  const sessionLogRepository = new JsonSessionLogRepository()
+  sessionLogRepository.startSession()
+
   app.on('before-quit', () => {
     isQuitting = true
+    sessionLogRepository.endSession()
   })
 
   const secretsStore = new SecretsStore()
@@ -123,29 +129,37 @@ async function bootstrap(): Promise<void> {
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()
 
-  const ggDealsClient = new GGDealsApiClient(() => secretsStore.get('ggDealsApiKey'))
+  const ggDealsClient = new GGDealsApiClient(() => secretsStore.get('ggDealsApiKey'), sessionLogRepository)
   const dealsRepository = new DealsRepositoryImpl(ggDealsClient)
 
-  const syncSteamLibrary = new SyncSteamLibrary(steamLibraryRepository, cacheRepository, historyRepository)
+  const syncSteamLibrary = new SyncSteamLibrary(
+    steamLibraryRepository,
+    cacheRepository,
+    historyRepository,
+    sessionLogRepository
+  )
   const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository, historyRepository)
   const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
   const refreshWishlistPrices = new RefreshWishlistPrices(
     dealsRepository,
     metadataRepository,
     priceHistoryRepository,
-    cacheRepository
+    cacheRepository,
+    sessionLogRepository
   )
   const syncSteamWishlist = new SyncSteamWishlist(
     steamWishlistRepository,
     metadataRepository,
     cacheRepository,
-    historyRepository
+    historyRepository,
+    sessionLogRepository
   )
   const fetchOwnableDeals = new FetchOwnableDeals(
     dealsRepository,
     metadataRepository,
     priceHistoryRepository,
-    cacheRepository
+    cacheRepository,
+    sessionLogRepository
   )
 
   mainWindow = createMainWindow()
@@ -156,12 +170,14 @@ async function bootstrap(): Promise<void> {
     notifiedDealsRepository,
     notificationService,
     historyRepository,
-    settingsRepository
+    settingsRepository,
+    sessionLogRepository
   )
 
+  const pollingStateRepository = new JsonPollingStateRepository()
   const scheduler = new PollingScheduler(async () => {
     await checkDealAlerts.execute()
-  })
+  }, pollingStateRepository)
   scheduler.start(settingsRepository.get().polling.intervalMinutes)
 
   const trayController = new TrayController(
@@ -200,7 +216,9 @@ async function bootstrap(): Promise<void> {
     scheduler,
     secretsStore,
     autoLaunchService,
-    notificationService
+    notificationService,
+    sessionLogRepository,
+    pollingStateRepository
   })
 
   app.on('activate', () => {
@@ -215,4 +233,5 @@ async function bootstrap(): Promise<void> {
   })
 
   logger.info('GamePriceAnalyzer iniciado.')
+  sessionLogRepository.log('info', 'GamePriceAnalyzer iniciado.')
 }

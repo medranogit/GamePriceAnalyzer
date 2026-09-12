@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Empty, Row, Col, Spin, Tag, Typography, Pagination } from 'antd'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
+import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
@@ -84,6 +85,7 @@ export function DashboardPage() {
           Ofertas para você
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}
         </Title>
+        <PollingStatus />
       </div>
 
       <FilterBar

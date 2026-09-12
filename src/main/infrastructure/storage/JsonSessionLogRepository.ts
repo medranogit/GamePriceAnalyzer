@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { SessionLogEntry, SessionLogKind, SessionLogLevel, SessionLogSession } from '@shared/types'
+import type { SessionLogEntry, SessionLogLevel, SessionLogSession } from '@shared/types'
 import type { SessionLogRepository } from '../../domain/repositories/SessionLogRepository'
 import { JsonFileStore } from './JsonFileStore'
 
 const MAX_SESSIONS = 100
-const MAX_ENTRIES_PER_SESSION = 500
+const MAX_ENTRIES_PER_SESSION = 2000
 
 interface SessionLogSchema {
   sessions: SessionLogSession[]
@@ -17,23 +17,21 @@ export class JsonSessionLogRepository implements SessionLogRepository {
   private readonly store = new JsonFileStore<SessionLogSchema>('session-log.json', EMPTY_SCHEMA)
   private currentSessionId: string | null = null
 
-  startSession(kind: SessionLogKind, label: string): void {
-    if (this.currentSessionId) {
-      this.finishSession('error', 'Sessão interrompida pelo início de uma nova operação.')
-    }
-
+  startSession(): string {
     const schema = this.store.read()
-    const id = randomUUID()
-    const session: SessionLogSession = {
-      id,
-      kind,
-      label,
-      startedAt: new Date().toISOString(),
-      finishedAt: null,
-      status: 'running'
-    }
+    const now = new Date().toISOString()
 
-    const sessions = [session, ...schema.sessions].slice(0, MAX_SESSIONS)
+    // Se o app foi encerrado de forma abrupta na vez anterior (crash, sem
+    // passar pelo before-quit), a sessão antiga ficou presa em "running" —
+    // fecha ela sozinha antes de abrir a nova.
+    const closedStaleSessions = schema.sessions.map((session) =>
+      session.status === 'running' ? { ...session, status: 'closed' as const, finishedAt: now } : session
+    )
+
+    const id = randomUUID()
+    const session: SessionLogSession = { id, startedAt: now, finishedAt: null, status: 'running' }
+
+    const sessions = [session, ...closedStaleSessions].slice(0, MAX_SESSIONS)
     const keptIds = new Set(sessions.map((s) => s.id))
     const entriesBySessionId = Object.fromEntries(
       Object.entries(schema.entriesBySessionId).filter(([sessionId]) => keptIds.has(sessionId))
@@ -42,6 +40,7 @@ export class JsonSessionLogRepository implements SessionLogRepository {
 
     this.store.write({ sessions, entriesBySessionId })
     this.currentSessionId = id
+    return id
   }
 
   log(level: SessionLogLevel, message: string): void {
@@ -57,14 +56,12 @@ export class JsonSessionLogRepository implements SessionLogRepository {
     })
   }
 
-  finishSession(status: 'completed' | 'error', message: string): void {
+  endSession(): void {
     if (!this.currentSessionId) return
     const finishedId = this.currentSessionId
-    this.log(status === 'completed' ? 'success' : 'error', message)
-
     const schema = this.store.read()
     const sessions = schema.sessions.map((s) =>
-      s.id === finishedId ? { ...s, status, finishedAt: new Date().toISOString() } : s
+      s.id === finishedId ? { ...s, status: 'closed' as const, finishedAt: new Date().toISOString() } : s
     )
     this.store.write({ ...schema, sessions })
     this.currentSessionId = null

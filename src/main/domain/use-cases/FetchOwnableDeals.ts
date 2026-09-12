@@ -4,6 +4,7 @@ import type { DealsRepository } from '../repositories/DealsRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { PriceHistoryRepository } from '../repositories/PriceHistoryRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
+import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
 /**
  * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
@@ -21,7 +22,8 @@ export class FetchOwnableDeals {
     private readonly dealsRepository: DealsRepository,
     private readonly metadataRepository: GameMetadataRepository,
     private readonly priceHistoryRepository: PriceHistoryRepository,
-    private readonly cacheRepository: AppCacheRepository
+    private readonly cacheRepository: AppCacheRepository,
+    private readonly sessionLogRepository: SessionLogRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
@@ -31,6 +33,12 @@ export class FetchOwnableDeals {
 
     // Descarta o que já é possuído antes de gastar cota da API do GG.deals com isso.
     const candidateAppIds = allCandidateAppIds.filter((appId) => !ownedAppIds.has(appId))
+    const ownedSkippedCount = allCandidateAppIds.length - candidateAppIds.length
+
+    this.sessionLogRepository.log(
+      'info',
+      `Candidatos: ${candidateAppIds.length} jogo(s) da wishlist (${ownedSkippedCount} já possuído(s) descartado(s)).`
+    )
 
     if (candidateAppIds.length === 0) return []
 
@@ -50,11 +58,14 @@ export class FetchOwnableDeals {
     const enriched = await this.enrichWithMetadata(deals)
 
     this.cacheRepository.setDeals(enriched)
+    this.sessionLogRepository.log('success', `Concluído: ${enriched.length} oferta(s) atualizada(s).`)
     return enriched
   }
 
   private async enrichWithMetadata(deals: GameDeal[]): Promise<GameDeal[]> {
     const enriched: GameDeal[] = []
+    let newlyResolvedCount = 0
+
     for (const deal of deals) {
       if (deal.appId === null) {
         enriched.push(deal)
@@ -62,6 +73,10 @@ export class FetchOwnableDeals {
       }
 
       const cached = this.cacheRepository.getMetadata(deal.appId)
+      if (!cached) {
+        this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${deal.title}"...`)
+        newlyResolvedCount += 1
+      }
       const metadata = cached ?? (await this.metadataRepository.fetchMetadata(deal.appId))
       if (metadata && !cached) {
         this.cacheRepository.setMetadata(metadata)
@@ -75,6 +90,10 @@ export class FetchOwnableDeals {
         steamDiscountPercent: metadata?.steamDiscountPercent ?? null,
         steamFullPrice: metadata?.steamFullPrice ?? null
       })
+    }
+
+    if (newlyResolvedCount > 0) {
+      this.sessionLogRepository.log('info', `Metadata nova resolvida pra ${newlyResolvedCount} jogo(s).`)
     }
     return enriched
   }

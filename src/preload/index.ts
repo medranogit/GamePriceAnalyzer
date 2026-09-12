@@ -4,6 +4,8 @@ import type {
   GameDeal,
   HistoryEvent,
   OwnedGame,
+  SessionLogEntry,
+  SessionLogSession,
   SteamSearchResult,
   WishlistItem,
   WishlistPriceInfo
@@ -37,7 +39,9 @@ const api = {
     getWishlistCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistDealsGetCached)
   },
   polling: {
-    triggerNow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.pollingTriggerNow)
+    triggerNow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.pollingTriggerNow),
+    getStatus: (): Promise<{ lastRunAt: string | null; intervalMinutes: number }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.pollingGetStatus)
   },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest)
@@ -52,6 +56,11 @@ const api = {
   },
   history: {
     getEvents: (): Promise<HistoryEvent[]> => ipcRenderer.invoke(IPC_CHANNELS.historyGetEvents)
+  },
+  sessionLog: {
+    getSessions: (): Promise<SessionLogSession[]> => ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetSessions),
+    getEntries: (sessionId: string): Promise<SessionLogEntry[]> =>
+      ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetEntries, sessionId)
   },
   onDealsFound: (callback: (deal: GameDeal) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, deal: GameDeal): void => callback(deal)

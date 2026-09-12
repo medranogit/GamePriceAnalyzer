@@ -14,6 +14,8 @@ import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
 import type { AutoLaunchService } from '../infrastructure/autostart/AutoLaunchService'
 import type { HistoryRepository } from '../domain/repositories/HistoryRepository'
 import type { NotificationService } from '../domain/use-cases/CheckDealAlerts'
+import type { SessionLogRepository } from '../domain/repositories/SessionLogRepository'
+import type { PollingStateRepository } from '../domain/repositories/PollingStateRepository'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
@@ -29,6 +31,8 @@ interface Dependencies {
   scheduler: PollingScheduler
   secretsStore: SecretsStore
   autoLaunchService: AutoLaunchService
+  sessionLogRepository: SessionLogRepository
+  pollingStateRepository: PollingStateRepository
 }
 
 export function registerIpcHandlers(deps: Dependencies): void {
@@ -97,6 +101,17 @@ export function registerIpcHandlers(deps: Dependencies): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.historyGetEvents, () => deps.historyRepository.getEvents())
+
+  ipcMain.handle(IPC_CHANNELS.sessionLogGetSessions, () => deps.sessionLogRepository.listSessions())
+
+  ipcMain.handle(IPC_CHANNELS.sessionLogGetEntries, (_event, sessionId: string) =>
+    deps.sessionLogRepository.getEntries(sessionId)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.pollingGetStatus, () => ({
+    lastRunAt: deps.pollingStateRepository.getLastRunAt(),
+    intervalMinutes: deps.settingsRepository.get().polling.intervalMinutes
+  }))
 
   ipcMain.handle(IPC_CHANNELS.notificationsTest, async () => {
     const fakeDeals: GameDeal[] = [

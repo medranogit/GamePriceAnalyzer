@@ -1,6 +1,7 @@
 import type { GameDeal } from '@shared/types'
 import { logger } from '../logging/logger'
 import { fetchWithRetry } from '../http/fetchWithRetry'
+import type { SessionLogRepository } from '../../domain/repositories/SessionLogRepository'
 
 const BASE_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/'
 const MAX_IDS_PER_REQUEST = 100
@@ -68,7 +69,10 @@ function readRateLimitHeaders(res: Response): { remaining: number | null; resetA
  * rate limit entre lotes em vez de disparar tudo de uma vez e tomar 429.
  */
 export class GGDealsApiClient {
-  constructor(private readonly apiKeyProvider: () => string | null) {}
+  constructor(
+    private readonly apiKeyProvider: () => string | null,
+    private readonly sessionLogRepository: SessionLogRepository
+  ) {}
 
   async getPricesBySteamAppIds(appIds: number[]): Promise<GameDeal[]> {
     const apiKey = this.apiKeyProvider()
@@ -80,16 +84,31 @@ export class GGDealsApiClient {
     const batches = chunk(appIds, MAX_IDS_PER_REQUEST)
     const deals: GameDeal[] = []
 
+    this.sessionLogRepository.log(
+      'info',
+      `Consultando GG.deals: ${appIds.length} jogo(s) em ${batches.length} lote(s) de até ${MAX_IDS_PER_REQUEST}.`
+    )
+
     for (let i = 0; i < batches.length; i++) {
+      this.sessionLogRepository.log(
+        'info',
+        `Lote ${i + 1}/${batches.length}: enviando ${batches[i].length} AppID(s)...`
+      )
       const result = await this.fetchBatch(batches[i], apiKey)
       deals.push(...result.deals)
+      this.sessionLogRepository.log(
+        'success',
+        `Lote ${i + 1}/${batches.length} concluído: ${result.deals.length} preço(s) recebido(s).`
+      )
 
       const nextBatch = batches[i + 1]
       if (!nextBatch) continue
 
       const waitMs = this.computeWaitBeforeNextBatch(result, nextBatch.length)
       if (waitMs > 0) {
-        logger.info(`Aguardando ${Math.ceil(waitMs / 1000)}s pra respeitar o rate limit do GG.deals...`)
+        const waitMessage = `Aguardando ${Math.ceil(waitMs / 1000)}s pra respeitar o rate limit do GG.deals...`
+        logger.info(waitMessage)
+        this.sessionLogRepository.log('warn', waitMessage)
         await sleep(waitMs)
       }
     }
@@ -115,9 +134,11 @@ export class GGDealsApiClient {
 
     if (res.status === 429) {
       logger.warn('GG.deals rate limit atingido (429), pulando esse lote.')
+      this.sessionLogRepository.log('warn', 'GG.deals retornou HTTP 429 (rate limit atingido), lote pulado.')
       return { deals: [], remaining: 0, resetAtMs }
     }
     if (!res.ok) {
+      this.sessionLogRepository.log('error', `GG.deals prices falhou: HTTP ${res.status}`)
       throw new Error(`GG.deals prices falhou: HTTP ${res.status}`)
     }
 

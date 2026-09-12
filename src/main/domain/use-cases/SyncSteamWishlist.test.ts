@@ -3,7 +3,18 @@ import type { GameMetadata, WishlistItem } from '@shared/types'
 import type { SteamWishlistRepository } from '../repositories/SteamWishlistRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { HistoryRepository } from '../repositories/HistoryRepository'
+import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { SyncSteamWishlist } from './SyncSteamWishlist'
+
+function makeSessionLogRepository(): SessionLogRepository {
+  return {
+    startSession: vi.fn(() => 'session-id'),
+    log: vi.fn(),
+    endSession: vi.fn(),
+    listSessions: () => [],
+    getEntries: () => []
+  }
+}
 
 function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCacheRepository {
   return {
@@ -52,7 +63,8 @@ describe('SyncSteamWishlist', () => {
       steamWishlistRepository,
       { fetchMetadata },
       cacheRepository,
-      historyRepository
+      historyRepository,
+      makeSessionLogRepository()
     )
 
     const result = await useCase.execute('76561198000000000')
@@ -83,7 +95,8 @@ describe('SyncSteamWishlist', () => {
       steamWishlistRepository,
       { fetchMetadata },
       cacheRepository,
-      historyRepository
+      historyRepository,
+      makeSessionLogRepository()
     )
 
     const resultPromise = useCase.execute('76561198000000000')
@@ -119,7 +132,8 @@ describe('SyncSteamWishlist', () => {
       steamWishlistRepository,
       { fetchMetadata: vi.fn() },
       cacheRepository,
-      historyRepository
+      historyRepository,
+      makeSessionLogRepository()
     )
 
     const result = await useCase.execute('76561198000000000')
@@ -148,7 +162,8 @@ describe('SyncSteamWishlist', () => {
       steamWishlistRepository,
       { fetchMetadata },
       cacheRepository,
-      historyRepository
+      historyRepository,
+      makeSessionLogRepository()
     )
 
     const result = await useCase.execute('76561198000000000')

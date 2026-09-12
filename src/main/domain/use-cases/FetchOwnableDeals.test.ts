@@ -2,7 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import type { GameDeal, GameMetadata, OwnedGame, WishlistItem } from '@shared/types'
 import type { DealsRepository } from '../repositories/DealsRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
+import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { FetchOwnableDeals } from './FetchOwnableDeals'
+
+function makeSessionLogRepository(): SessionLogRepository {
+  return {
+    startSession: vi.fn(() => 'session-id'),
+    log: vi.fn(),
+    endSession: vi.fn(),
+    listSessions: () => [],
+    getEntries: () => []
+  }
+}
 
 function makeWishlistItem(appId: number): WishlistItem {
   return {
@@ -65,7 +76,8 @@ describe('FetchOwnableDeals', () => {
       { fetchDealsBySteamAppIds },
       { fetchMetadata: vi.fn() },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
-      cacheRepository
+      cacheRepository,
+      makeSessionLogRepository()
     )
 
     const result = await useCase.execute()
@@ -86,7 +98,8 @@ describe('FetchOwnableDeals', () => {
       { fetchDealsBySteamAppIds },
       { fetchMetadata: vi.fn(async () => null) },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
-      cacheRepository
+      cacheRepository,
+      makeSessionLogRepository()
     )
 
     await useCase.execute()
@@ -113,7 +126,8 @@ describe('FetchOwnableDeals', () => {
       { fetchDealsBySteamAppIds },
       { fetchMetadata: vi.fn(async () => metadata) },
       { getRecord: vi.fn(), recordObservation },
-      cacheRepository
+      cacheRepository,
+      makeSessionLogRepository()
     )
 
     const result = await useCase.execute()
@@ -148,7 +162,8 @@ describe('FetchOwnableDeals', () => {
       { fetchDealsBySteamAppIds },
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
-      cacheRepository
+      cacheRepository,
+      makeSessionLogRepository()
     )
 
     await useCase.execute()

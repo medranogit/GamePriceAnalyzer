@@ -1,19 +1,16 @@
-import type { SessionLogEntry, SessionLogKind, SessionLogLevel, SessionLogSession } from '@shared/types'
+import type { SessionLogEntry, SessionLogLevel, SessionLogSession } from '@shared/types'
 
 /**
- * Log técnico por sessão (uma execução de uma operação: busca de ofertas,
- * sincronização de wishlist/biblioteca, refresh de preço) — granular o
- * bastante pra mostrar lote-a-lote de chamada de API e espera de rate limit,
- * diferente do Histórico (que só guarda o resumo final de cada operação).
- *
- * Sempre existe no máximo uma sessão "current" por vez — `log`/`finishSession`
- * sempre se aplicam a ela, sem precisar passar um id por toda a cadeia de
- * chamadas (use-cases → repositórios → client HTTP).
+ * Log técnico único por sessão do app — uma sessão vai do momento em que o
+ * app abre até ser encerrado de verdade (menu da bandeja), com tudo que
+ * acontece nesse período (buscas, sincronizações, chamadas de API, erros)
+ * misturado em ordem cronológica. Diferente do Histórico, que só guarda o
+ * resumo de eventos de negócio, não o passo a passo técnico.
  */
 export interface SessionLogRepository {
-  startSession(kind: SessionLogKind, label: string): void
+  startSession(): string
   log(level: SessionLogLevel, message: string): void
-  finishSession(status: 'completed' | 'error', message: string): void
+  endSession(): void
   listSessions(): SessionLogSession[]
   getEntries(sessionId: string): SessionLogEntry[]
 }

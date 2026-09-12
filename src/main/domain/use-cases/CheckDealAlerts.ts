@@ -4,6 +4,7 @@ import type { FetchOwnableDeals } from './FetchOwnableDeals'
 import type { NotifiedDealsRepository } from '../repositories/NotifiedDealsRepository'
 import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SettingsRepository } from '../repositories/SettingsRepository'
+import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
 export interface NotificationService {
   notifyDeal(deal: GameDeal): void
@@ -21,35 +22,54 @@ export class CheckDealAlerts {
     private readonly notifiedDealsRepository: NotifiedDealsRepository,
     private readonly notificationService: NotificationService,
     private readonly historyRepository: HistoryRepository,
-    private readonly settingsRepository: SettingsRepository
+    private readonly settingsRepository: SettingsRepository,
+    private readonly sessionLogRepository: SessionLogRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
-    const deals = await this.fetchOwnableDeals.execute()
-    const { minDiscountPercent } = this.settingsRepository.get().filters
-    const newlyNotified: GameDeal[] = []
+    this.sessionLogRepository.log('info', 'Iniciando busca de ofertas...')
 
-    for (const deal of deals) {
-      const best = getBestCurrentPrice(deal)
-      if (deal.appId === null || !best) continue
-      if (!qualifiesAsDeal(deal, minDiscountPercent)) continue
+    try {
+      const deals = await this.fetchOwnableDeals.execute()
+      const { minDiscountPercent } = this.settingsRepository.get().filters
+      const newlyNotified: GameDeal[] = []
 
-      const price = best.price
-      if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, price)) continue
+      for (const deal of deals) {
+        const best = getBestCurrentPrice(deal)
+        if (deal.appId === null || !best) continue
+        if (!qualifiesAsDeal(deal, minDiscountPercent)) continue
 
-      this.notificationService.notifyDeal(deal)
-      this.notifiedDealsRepository.markNotified({
-        appId: deal.appId,
-        lastNotifiedPrice: price,
-        lastNotifiedAt: new Date().toISOString()
-      })
-      this.historyRepository.addEvent(
-        'deal_found',
-        `${deal.title}: ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+        const price = best.price
+        if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, price)) continue
+
+        this.notificationService.notifyDeal(deal)
+        this.notifiedDealsRepository.markNotified({
+          appId: deal.appId,
+          lastNotifiedPrice: price,
+          lastNotifiedAt: new Date().toISOString()
+        })
+        this.historyRepository.addEvent(
+          'deal_found',
+          `${deal.title}: ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+        )
+        this.sessionLogRepository.log(
+          'success',
+          `Oferta notificada: ${deal.title} — ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+        )
+        newlyNotified.push(deal)
+      }
+
+      this.sessionLogRepository.log(
+        'success',
+        `Busca de ofertas concluída: ${deals.length} jogo(s) analisado(s), ${newlyNotified.length} notificação(ões) disparada(s).`
       )
-      newlyNotified.push(deal)
+      return newlyNotified
+    } catch (error) {
+      this.sessionLogRepository.log(
+        'error',
+        `Falha na busca de ofertas: ${error instanceof Error ? error.message : String(error)}`
+      )
+      throw error
     }
-
-    return newlyNotified
   }
 }
