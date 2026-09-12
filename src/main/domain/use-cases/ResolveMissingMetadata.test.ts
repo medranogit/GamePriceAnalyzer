@@ -43,7 +43,13 @@ function makeMetadata(appId: number): GameMetadata {
     steamPrice: null,
     steamDiscountPercent: null,
     steamFullPrice: null,
-    shortDescription: null
+    shortDescription: null,
+    developers: [],
+    publishers: [],
+    releaseDate: null,
+    metacriticScore: null,
+    recommendationsTotal: null,
+    screenshots: []
   }
 }
 
@@ -62,6 +68,12 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     steamDiscountPercent: null,
     steamFullPrice: null,
     shortDescription: null,
+    developers: [],
+    publishers: [],
+    releaseDate: null,
+    metacriticScore: null,
+    recommendationsTotal: null,
+    screenshots: [],
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -220,6 +232,38 @@ describe('ResolveMissingMetadata', () => {
     ])
     expect(cacheRepository.setWishlistDeals).toHaveBeenCalledWith([
       expect.objectContaining({ appId: 2, coverUrl: metadata.headerImageUrl })
+    ])
+  })
+
+  it('não quebra ao sincronizar oferta/metadata cacheadas por uma versão anterior, sem developers/publishers/screenshots', async () => {
+    vi.useFakeTimers()
+    const legacyMetadata = { ...makeMetadata(7) } as Partial<GameMetadata>
+    delete legacyMetadata.developers
+    delete legacyMetadata.publishers
+    delete legacyMetadata.screenshots
+    const legacyDeal = { ...makeDeal(7) } as Partial<GameDeal>
+    delete legacyDeal.developers
+    delete legacyDeal.publishers
+    delete legacyDeal.screenshots
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(7)],
+      getMetadata: (appId) => (appId === 7 ? (legacyMetadata as GameMetadata) : null),
+      getDeals: () => [legacyDeal as GameDeal]
+    })
+    const fetchMetadata = vi.fn(async () => null)
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository()
+    )
+
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    await resultPromise
+
+    expect(cacheRepository.setDeals).toHaveBeenCalledWith([
+      expect.objectContaining({ appId: 7, developers: [], publishers: [], screenshots: [] })
     ])
   })
 

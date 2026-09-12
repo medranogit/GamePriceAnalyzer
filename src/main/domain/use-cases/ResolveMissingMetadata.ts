@@ -13,22 +13,53 @@ const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'steamPrice',
   'steamDiscountPercent',
   'steamFullPrice',
-  'shortDescription'
+  'shortDescription',
+  'developers',
+  'publishers',
+  'releaseDate',
+  'metacriticScore',
+  'recommendationsTotal',
+  'screenshots'
 ]
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Aplica a metadata da Steam em cima de uma oferta cacheada, sem sobrescrever o que já tinha valor. */
+/**
+ * Aplica a metadata da Steam em cima de uma oferta cacheada, sem sobrescrever o que já tinha valor.
+ * `deal`/`metadata` podem ter sido salvos em disco por uma versão anterior do app, sem os campos mais
+ * novos — daí o `?? []`/`?? null` em vez de acessar os campos direto (ver regressão de `steamFullPrice`
+ * em dealPricing.ts).
+ */
 function applyMetadataToDeal(deal: GameDeal, metadata: GameMetadata): GameDeal {
+  const dealDevelopers = deal.developers ?? []
+  const dealPublishers = deal.publishers ?? []
+  const dealScreenshots = deal.screenshots ?? []
+  const metadataGenres = metadata.genres ?? []
+  const metadataDevelopers = metadata.developers ?? []
+  const metadataPublishers = metadata.publishers ?? []
+  const metadataScreenshots = metadata.screenshots ?? []
+
   const nextCoverUrl = deal.coverUrl ?? metadata.headerImageUrl ?? undefined
-  const nextGenres = metadata.genres.length > 0 ? metadata.genres : deal.genres
+  const nextGenres = metadataGenres.length > 0 ? metadataGenres : deal.genres
   const nextShortDescription = deal.shortDescription ?? metadata.shortDescription ?? null
+  const nextDevelopers = dealDevelopers.length > 0 ? dealDevelopers : metadataDevelopers
+  const nextPublishers = dealPublishers.length > 0 ? dealPublishers : metadataPublishers
+  const nextReleaseDate = deal.releaseDate ?? metadata.releaseDate ?? null
+  const nextMetacriticScore = deal.metacriticScore ?? metadata.metacriticScore ?? null
+  const nextRecommendationsTotal = deal.recommendationsTotal ?? metadata.recommendationsTotal ?? null
+  const nextScreenshots = dealScreenshots.length > 0 ? dealScreenshots : metadataScreenshots
   const isUpToDate =
     nextCoverUrl === deal.coverUrl &&
     nextGenres === deal.genres &&
     nextShortDescription === deal.shortDescription &&
+    nextDevelopers === deal.developers &&
+    nextPublishers === deal.publishers &&
+    nextReleaseDate === deal.releaseDate &&
+    nextMetacriticScore === deal.metacriticScore &&
+    nextRecommendationsTotal === deal.recommendationsTotal &&
+    nextScreenshots === deal.screenshots &&
     deal.steamPrice === metadata.steamPrice &&
     deal.steamDiscountPercent === metadata.steamDiscountPercent &&
     deal.steamFullPrice === metadata.steamFullPrice
@@ -39,6 +70,12 @@ function applyMetadataToDeal(deal: GameDeal, metadata: GameMetadata): GameDeal {
     genres: nextGenres,
     coverUrl: nextCoverUrl,
     shortDescription: nextShortDescription,
+    developers: nextDevelopers,
+    publishers: nextPublishers,
+    releaseDate: nextReleaseDate,
+    metacriticScore: nextMetacriticScore,
+    recommendationsTotal: nextRecommendationsTotal,
+    screenshots: nextScreenshots,
     steamPrice: metadata.steamPrice,
     steamDiscountPercent: metadata.steamDiscountPercent,
     steamFullPrice: metadata.steamFullPrice

@@ -4,6 +4,7 @@ export interface FilterSettings {
   maxPrice: number | null
   includeKeyshops: boolean
   selectedGenres: string[]
+  onlyHistoricalLow: boolean
 }
 
 export interface PollingSettings {
@@ -28,7 +29,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     minPrice: null,
     maxPrice: null,
     includeKeyshops: true,
-    selectedGenres: []
+    selectedGenres: [],
+    onlyHistoricalLow: false
   },
   polling: {
     intervalMinutes: 60,

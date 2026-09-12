@@ -6,7 +6,7 @@ import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
-import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
+import { getBestCurrentPrice, getDisplayDiscountPercent, isAtOrBelowHistoricalLow } from '@shared/dealPricing'
 import type { FilterSettings } from '@shared/types'
 
 const { Title } = Typography
@@ -50,6 +50,7 @@ export function DashboardPage() {
             filters.selectedGenres.length === 0 ||
             deal.genres.some((genre) => filters.selectedGenres.includes(genre))
         )
+        .filter((deal) => !filters.onlyHistoricalLow || isAtOrBelowHistoricalLow(deal))
     : []
 
   const sortedDeals = [...filteredDeals].sort((a, b) =>
@@ -65,7 +66,8 @@ export function DashboardPage() {
     filters?.includeKeyshops,
     filters?.selectedGenres,
     filters?.minPrice,
-    filters?.maxPrice
+    filters?.maxPrice,
+    filters?.onlyHistoricalLow
   ])
 
   const pagedDeals = sortedDeals.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)

@@ -85,7 +85,13 @@ describe('SyncSteamWishlist', () => {
       steamPrice: null,
       steamDiscountPercent: null,
       steamFullPrice: null,
-      shortDescription: null
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: []
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])
@@ -153,7 +159,13 @@ describe('SyncSteamWishlist', () => {
       steamPrice: null,
       steamDiscountPercent: null,
       steamFullPrice: null,
-      shortDescription: null
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: []
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])

@@ -112,6 +112,19 @@ export function FilterBar({
               onChange={(checked) => onChange({ includeKeyshops: checked })}
             />
           </Space>
+
+          <Space direction="vertical" size={0} align="center">
+            <Text type="secondary">
+              Só menor preço histórico{' '}
+              <Tooltip title="Mostra só ofertas em que o preço atual (loja oficial ou keyshop) já é igual ou menor que o menor preço já visto pra esse jogo no GG.deals.">
+                <InfoCircleOutlined />
+              </Tooltip>
+            </Text>
+            <Switch
+              checked={filters.onlyHistoricalLow}
+              onChange={(checked) => onChange({ onlyHistoricalLow: checked })}
+            />
+          </Space>
         </FiltersGroup>
       </TopRow>
     </Card>

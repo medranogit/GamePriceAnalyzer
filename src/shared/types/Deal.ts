@@ -14,6 +14,12 @@ export interface GameDeal {
   /** Preço "cheio" da Steam, sem desconto ativo — referência pra calcular economia em keyshops. */
   steamFullPrice: number | null
   shortDescription: string | null
+  developers: string[]
+  publishers: string[]
+  releaseDate: string | null
+  metacriticScore: number | null
+  recommendationsTotal: number | null
+  screenshots: string[]
   /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
   firstSeenAt: string
 }

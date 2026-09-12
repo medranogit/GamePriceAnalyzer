@@ -8,4 +8,10 @@ export interface GameMetadata {
   /** Preço "cheio" da Steam, sem desconto ativo — referência pra calcular economia em keyshops. */
   steamFullPrice: number | null
   shortDescription: string | null
+  developers: string[]
+  publishers: string[]
+  releaseDate: string | null
+  metacriticScore: number | null
+  recommendationsTotal: number | null
+  screenshots: string[]
 }

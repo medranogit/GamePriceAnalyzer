@@ -16,6 +16,12 @@ interface AppDetailsResponse {
         final: number
         discount_percent: number
       }
+      developers?: string[]
+      publishers?: string[]
+      release_date?: { coming_soon: boolean; date: string }
+      metacritic?: { score: number; url: string }
+      recommendations?: { total: number }
+      screenshots?: Array<{ id: number; path_thumbnail: string; path_full: string }>
     }
   }
 }
@@ -52,7 +58,13 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
         steamPrice: entry.data.price_overview ? entry.data.price_overview.final / 100 : null,
         steamDiscountPercent: entry.data.price_overview?.discount_percent ?? null,
         steamFullPrice: entry.data.price_overview ? entry.data.price_overview.initial / 100 : null,
-        shortDescription: entry.data.short_description ?? null
+        shortDescription: entry.data.short_description ?? null,
+        developers: entry.data.developers ?? [],
+        publishers: entry.data.publishers ?? [],
+        releaseDate: entry.data.release_date?.coming_soon ? null : (entry.data.release_date?.date ?? null),
+        metacriticScore: entry.data.metacritic?.score ?? null,
+        recommendationsTotal: entry.data.recommendations?.total ?? null,
+        screenshots: entry.data.screenshots?.slice(0, 5).map((s) => s.path_full) ?? []
       }
     } catch (error) {
       logger.warn(`Falha ao buscar metadata do appId ${appId}`, error)

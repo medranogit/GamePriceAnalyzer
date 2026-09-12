@@ -162,6 +162,12 @@ export class GGDealsApiClient {
         steamDiscountPercent: null,
         steamFullPrice: null,
         shortDescription: null,
+        developers: [],
+        publishers: [],
+        releaseDate: null,
+        metacriticScore: null,
+        recommendationsTotal: null,
+        screenshots: [],
         firstSeenAt: new Date().toISOString()
       })
     }

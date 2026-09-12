@@ -104,7 +104,13 @@ export class FetchOwnableDeals {
         steamPrice: metadata?.steamPrice ?? null,
         steamDiscountPercent: metadata?.steamDiscountPercent ?? null,
         steamFullPrice: metadata?.steamFullPrice ?? null,
-        shortDescription: metadata?.shortDescription ?? deal.shortDescription ?? null
+        shortDescription: metadata?.shortDescription ?? deal.shortDescription ?? null,
+        developers: metadata?.developers ?? deal.developers ?? [],
+        publishers: metadata?.publishers ?? deal.publishers ?? [],
+        releaseDate: metadata?.releaseDate ?? deal.releaseDate ?? null,
+        metacriticScore: metadata?.metacriticScore ?? deal.metacriticScore ?? null,
+        recommendationsTotal: metadata?.recommendationsTotal ?? deal.recommendationsTotal ?? null,
+        screenshots: metadata?.screenshots ?? deal.screenshots ?? []
       })
     }
 

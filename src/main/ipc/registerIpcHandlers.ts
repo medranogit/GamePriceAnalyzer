@@ -185,6 +185,12 @@ function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
     steamDiscountPercent: null,
     steamFullPrice: null,
     shortDescription: null,
+    developers: [],
+    publishers: [],
+    releaseDate: null,
+    metacriticScore: null,
+    recommendationsTotal: null,
+    screenshots: [],
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
