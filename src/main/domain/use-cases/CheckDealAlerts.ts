@@ -12,6 +12,8 @@ export interface NotificationService {
   notifyDeal(deal: GameDeal): void
   /** Uma única notificação resumindo várias ofertas de uma vez — ver BATCH_NOTIFICATION_THRESHOLD. */
   notifyDealsBatch(deals: GameDeal[]): void
+  /** Fecha na hora as notificações nativas do SO ainda visíveis — não mexe no histórico de "já notificado". */
+  dismissAll(): void
 }
 
 /**

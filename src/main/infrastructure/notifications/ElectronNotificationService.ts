@@ -42,10 +42,24 @@ async function fetchIcon(url: string | undefined): Promise<Electron.NativeImage 
  * ofertas em tempo real. Clicar na notificação traz o app pra frente.
  */
 export class ElectronNotificationService implements NotificationService {
+  private readonly activeNotifications = new Set<Notification>()
+
   constructor(
     private readonly getMainWindow: () => BrowserWindow | null,
     private readonly settingsRepository: SettingsRepository
   ) {}
+
+  dismissAll(): void {
+    for (const notification of this.activeNotifications) {
+      notification.close()
+    }
+    this.activeNotifications.clear()
+  }
+
+  private trackNotification(notification: Notification): void {
+    this.activeNotifications.add(notification)
+    notification.on('close', () => this.activeNotifications.delete(notification))
+  }
 
   notifyDeal(deal: GameDeal): void {
     const { quietHoursStart, quietHoursEnd } = this.settingsRepository.get().polling
@@ -74,6 +88,7 @@ export class ElectronNotificationService implements NotificationService {
       icon: nativeImage.createFromPath(getAppIconPath()),
       silent: false
     })
+    this.trackNotification(notification)
 
     notification.on('click', () => {
       const window = this.getMainWindow()
@@ -101,6 +116,7 @@ export class ElectronNotificationService implements NotificationService {
       icon,
       silent: false
     })
+    this.trackNotification(notification)
 
     notification.on('click', () => {
       const window = this.getMainWindow()

@@ -101,7 +101,7 @@ function makeSessionLogRepository(): SessionLogRepository {
 }
 
 function makeNotificationService(): NotificationService {
-  return { notifyDeal: vi.fn(), notifyDealsBatch: vi.fn() }
+  return { notifyDeal: vi.fn(), notifyDealsBatch: vi.fn(), dismissAll: vi.fn() }
 }
 
 describe('CheckDealAlerts', () => {

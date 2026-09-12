@@ -44,6 +44,11 @@ interface Dependencies {
 }
 
 export function registerIpcHandlers(deps: Dependencies): void {
+  // O teste de notificação dispara com pausa entre cada uma (efeito demonstrativo) — sem isso, "Limpar
+  // notificações" só fecharia quem já tivesse aparecido até aquele momento, e o resto continuaria
+  // disparando sozinho no meio do teste.
+  const testNotificationsState = { cancelled: false }
+
   ipcMain.handle(IPC_CHANNELS.settingsGet, () => deps.settingsRepository.get())
 
   ipcMain.handle(IPC_CHANNELS.settingsUpdate, (_event, partial: Partial<AppSettings>) => {
@@ -131,6 +136,7 @@ export function registerIpcHandlers(deps: Dependencies): void {
   }))
 
   ipcMain.handle(IPC_CHANNELS.notificationsTest, async () => {
+    testNotificationsState.cancelled = false
     const fakeDeals: GameDeal[] = [
       makeFakeDeal({
         appId: 1245620,
@@ -160,6 +166,7 @@ export function registerIpcHandlers(deps: Dependencies): void {
     ]
 
     for (const deal of fakeDeals) {
+      if (testNotificationsState.cancelled) break
       deps.notificationService.notifyDeal(deal)
       await sleep(1500)
     }
@@ -167,6 +174,11 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.notifiedDealsClear, () => {
     deps.notifiedDealsRepository.clear()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.notificationsDismissAll, () => {
+    testNotificationsState.cancelled = true
+    deps.notificationService.dismissAll()
   })
 
   ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, () => deps.resolveMissingMetadata.execute())

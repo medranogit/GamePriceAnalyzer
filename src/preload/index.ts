@@ -56,7 +56,8 @@ const api = {
   },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest),
-    clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notifiedDealsClear)
+    clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notifiedDealsClear),
+    dismissAll: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsDismissAll)
   },
   secrets: {
     status: (): Promise<{ hasSteamApiKey: boolean; hasGGDealsApiKey: boolean }> =>

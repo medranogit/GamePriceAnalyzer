@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Button,
   Card,
-  Divider,
   Form,
   Input,
   InputNumber,
@@ -13,11 +12,21 @@ import {
   Typography,
   message
 } from 'antd'
-import { ClearOutlined, NotificationOutlined, PictureOutlined, SyncOutlined } from '@ant-design/icons'
+import {
+  BellOutlined,
+  ClearOutlined,
+  DesktopOutlined,
+  NotificationOutlined,
+  PictureOutlined,
+  SyncOutlined,
+  TagsOutlined,
+  UserOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
+import { dismissAllInAppNotifications } from '@renderer/lib/notificationApi'
 
 const { Title, Text } = Typography
 
@@ -30,6 +39,7 @@ export function SettingsPage() {
   const setGGDealsApiKey = useSetGGDealsApiKey()
   const [testingNotifications, setTestingNotifications] = useState(false)
   const [clearingNotifications, setClearingNotifications] = useState(false)
+  const [dismissingNotifications, setDismissingNotifications] = useState(false)
   const [checkingDealsNow, setCheckingDealsNow] = useState(false)
   const [resolvingMetadata, setResolvingMetadata] = useState(false)
 
@@ -47,7 +57,14 @@ export function SettingsPage() {
     <div>
       <Title level={3}>Configurações</Title>
 
-      <Card title="Conta Steam" style={{ marginBottom: 16 }}>
+      <Card
+        title={
+          <Space>
+            <UserOutlined /> Conta Steam
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
         <Form layout="vertical">
           <Form.Item
             label="SteamID64"
@@ -71,7 +88,10 @@ export function SettingsPage() {
             </Space.Compact>
           </Form.Item>
 
-          <Form.Item label="Chave da Steam Web API" extra="Gere em steamcommunity.com/dev/apikey">
+          <Form.Item
+            label="Chave da Steam Web API"
+            extra="Gere em steamcommunity.com/dev/apikey. Necessária pra sincronizar Minha Biblioteca e buscar conquistas."
+          >
             <Space.Compact style={{ width: '100%' }}>
               <Input.Password
                 placeholder={secretsStatus?.hasSteamApiKey ? '•••••••• (configurada)' : 'cole sua chave aqui'}
@@ -97,7 +117,14 @@ export function SettingsPage() {
         </Form>
       </Card>
 
-      <Card title="GG.deals" style={{ marginBottom: 16 }}>
+      <Card
+        title={
+          <Space>
+            <TagsOutlined /> GG.deals
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
         <Form layout="vertical">
           <Form.Item label="Chave da API do GG.deals" extra="Gere em gg.deals/api/">
             <Space.Compact style={{ width: '100%' }}>
@@ -127,7 +154,14 @@ export function SettingsPage() {
         </Form>
       </Card>
 
-      <Card title="Verificação em background">
+      <Card
+        title={
+          <Space>
+            <SyncOutlined /> Sincronização em background
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
         <Form layout="vertical">
           <Form.Item label="Intervalo de busca de ofertas (minutos)">
             <InputNumber
@@ -154,6 +188,70 @@ export function SettingsPage() {
             />
           </Form.Item>
 
+          <Form.Item
+            label="Procurar ofertas agora"
+            extra="Roda uma busca imediata na wishlist inteira, sem esperar o próximo ciclo automático."
+          >
+            <Button
+              icon={<SyncOutlined />}
+              loading={checkingDealsNow}
+              onClick={async () => {
+                setCheckingDealsNow(true)
+                try {
+                  await window.api.polling.triggerNow()
+                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
+                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+                  message.success('Busca de ofertas concluída.')
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setCheckingDealsNow(false)
+                }
+              }}
+            >
+              Procurar ofertas agora
+            </Button>
+          </Form.Item>
+
+          <Form.Item
+            label="Buscar metadados da Steam agora"
+            extra="Resolve capa, gênero, sinopse, trailer etc. (via Steam) de quem ainda não tem isso em cache — tanto na wishlist quanto na sua biblioteca. Útil pra preencher informações faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
+          >
+            <Button
+              icon={<PictureOutlined />}
+              loading={resolvingMetadata}
+              onClick={async () => {
+                setResolvingMetadata(true)
+                try {
+                  const result = await window.api.metadata.resolveMissing()
+                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
+                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+                  void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
+                  message.success(
+                    `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
+                  )
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setResolvingMetadata(false)
+                }
+              }}
+            >
+              Buscar metadados da Steam agora
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card
+        title={
+          <Space>
+            <BellOutlined /> Notificações
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
+        <Form layout="vertical">
           <Form.Item
             label="Desconto mínimo pra notificar"
             extra="A partir de quantos % de desconto (efetivo, comparado ao preço cheio da Steam, ou o desconto ativo na própria Steam) uma oferta deve notificar. Independente do filtro de exibição do Dashboard."
@@ -213,68 +311,6 @@ export function SettingsPage() {
           </Form.Item>
 
           <Form.Item
-            label="Procurar ofertas agora"
-            extra="Roda uma busca imediata na wishlist inteira, sem esperar o próximo ciclo automático."
-          >
-            <Button
-              icon={<SyncOutlined />}
-              loading={checkingDealsNow}
-              onClick={async () => {
-                setCheckingDealsNow(true)
-                try {
-                  await window.api.polling.triggerNow()
-                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
-                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
-                  message.success('Busca de ofertas concluída.')
-                } catch (error) {
-                  showError(error)
-                } finally {
-                  setCheckingDealsNow(false)
-                }
-              }}
-            >
-              Procurar ofertas agora
-            </Button>
-          </Form.Item>
-
-          <Form.Item
-            label="Buscar metadados da Steam agora"
-            extra="Resolve capa, gênero, sinopse, trailer etc. (via Steam) de quem ainda não tem isso em cache — tanto na wishlist quanto na sua biblioteca. Útil pra preencher informações faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
-          >
-            <Button
-              icon={<PictureOutlined />}
-              loading={resolvingMetadata}
-              onClick={async () => {
-                setResolvingMetadata(true)
-                try {
-                  const result = await window.api.metadata.resolveMissing()
-                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
-                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
-                  void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
-                  message.success(
-                    `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
-                  )
-                } catch (error) {
-                  showError(error)
-                } finally {
-                  setResolvingMetadata(false)
-                }
-              }}
-            >
-              Buscar metadados da Steam agora
-            </Button>
-          </Form.Item>
-
-          <Divider />
-
-          <Form.Item label="Iniciar com o Windows (minimizado na bandeja)">
-            <Switch
-              checked={settings.autoStartOnBoot}
-              onChange={(checked) => updateSettings.mutate({ autoStartOnBoot: checked })}
-            />
-          </Form.Item>
-
-          <Form.Item
             label="Testar notificação"
             extra="Dispara 3 notificações de mentira, espaçadas, pra você ver o visual. Respeita o modo silencioso configurado acima."
           >
@@ -297,18 +333,42 @@ export function SettingsPage() {
           </Form.Item>
 
           <Form.Item
-            label="Limpar histórico de notificações"
-            extra="Esquece o que já foi notificado — ofertas que ainda estão qualificando podem notificar de novo na próxima busca. Útil se veio um monte de notificação de uma vez e você quer resetar."
+            label="Limpar notificações"
+            extra="Fecha na hora as notificações que ainda estão na tela (do Windows e dentro do app) — útil quando dispara um monte de uma vez. Não muda o que já foi notificado."
+          >
+            <Button
+              icon={<ClearOutlined />}
+              loading={dismissingNotifications}
+              onClick={async () => {
+                setDismissingNotifications(true)
+                try {
+                  dismissAllInAppNotifications()
+                  await window.api.notifications.dismissAll()
+                  message.success('Notificações fechadas.')
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setDismissingNotifications(false)
+                }
+              }}
+            >
+              Limpar notificações
+            </Button>
+          </Form.Item>
+
+          <Form.Item
+            label="Esquecer o que já foi notificado"
+            extra="Zera o histórico de preços já notificados — ofertas que ainda qualificam podem notificar de novo na próxima busca, mesmo sem cair mais de preço. Não fecha nada que já esteja na tela."
           >
             <Popconfirm
-              title="Limpar todo o histórico de notificações?"
-              okText="Limpar"
+              title="Esquecer todo o histórico de notificações?"
+              okText="Esquecer"
               cancelText="Cancelar"
               onConfirm={async () => {
                 setClearingNotifications(true)
                 try {
                   await window.api.notifications.clearHistory()
-                  message.success('Histórico de notificações limpo.')
+                  message.success('Histórico de notificações esquecido.')
                 } catch (error) {
                   showError(error)
                 } finally {
@@ -317,9 +377,26 @@ export function SettingsPage() {
               }}
             >
               <Button icon={<ClearOutlined />} loading={clearingNotifications} danger>
-                Limpar notificações
+                Esquecer histórico
               </Button>
             </Popconfirm>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card
+        title={
+          <Space>
+            <DesktopOutlined /> Geral
+          </Space>
+        }
+      >
+        <Form layout="vertical">
+          <Form.Item label="Iniciar com o Windows (minimizado na bandeja)">
+            <Switch
+              checked={settings.autoStartOnBoot}
+              onChange={(checked) => updateSettings.mutate({ autoStartOnBoot: checked })}
+            />
           </Form.Item>
         </Form>
       </Card>

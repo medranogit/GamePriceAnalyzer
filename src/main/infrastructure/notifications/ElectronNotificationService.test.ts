@@ -12,6 +12,7 @@ const { NotificationMock, nativeImageMock } = vi.hoisted(() => {
     icon?: unknown
     silent: boolean
     show = vi.fn()
+    close = vi.fn(() => this.emit('close'))
     private handlers: Record<string, () => void> = {}
 
     constructor(options: { title: string; body: string; icon?: unknown; silent: boolean }) {
@@ -197,5 +198,26 @@ describe('ElectronNotificationService', () => {
     service.notifyDealsBatch([makeDeal()])
 
     expect(NotificationMock.instances).toHaveLength(0)
+  })
+
+  it('dismissAll fecha todas as notificações nativas ainda visíveis', async () => {
+    const settingsRepository = makeSettingsRepository(null, null)
+    const service = new ElectronNotificationService(() => null, settingsRepository)
+
+    service.notifyDeal(makeDeal({ appId: 1 }))
+    service.notifyDeal(makeDeal({ appId: 2 }))
+    await vi.waitFor(() => {
+      expect(NotificationMock.instances).toHaveLength(2)
+    })
+
+    service.dismissAll()
+
+    expect(NotificationMock.instances[0].close).toHaveBeenCalledTimes(1)
+    expect(NotificationMock.instances[1].close).toHaveBeenCalledTimes(1)
+
+    // depois de fechadas, uma segunda chamada não tenta fechar de novo (já foram esquecidas)
+    service.dismissAll()
+    expect(NotificationMock.instances[0].close).toHaveBeenCalledTimes(1)
+    expect(NotificationMock.instances[1].close).toHaveBeenCalledTimes(1)
   })
 })

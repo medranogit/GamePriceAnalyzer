@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { notification } from 'antd'
 import { ThunderboltFilled } from '@ant-design/icons'
@@ -14,6 +14,7 @@ import { LogSessaoPage } from '@renderer/pages/LogSessao/LogSessaoPage'
 import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
 import { useDealsFoundListener, useDealsBatchFoundListener } from '@renderer/hooks/useDeals'
 import { playAlertSound } from '@renderer/lib/playAlertSound'
+import { registerNotificationApi } from '@renderer/lib/notificationApi'
 import type { GameDeal } from '@shared/types'
 import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
 
@@ -55,6 +56,10 @@ const NotificationDescription = styled.div`
 
 export function App() {
   const [api, contextHolder] = notification.useNotification()
+
+  useEffect(() => {
+    registerNotificationApi(api)
+  }, [api])
 
   const handleDealFound = useCallback(
     (deal: GameDeal) => {

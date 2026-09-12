@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   pollingGetStatus: 'polling:getStatus',
   notificationsTest: 'notifications:test',
   notifiedDealsClear: 'notifiedDeals:clear',
+  notificationsDismissAll: 'notifications:dismissAll',
   metadataResolveMissing: 'metadata:resolveMissing',
   metadataGetAll: 'metadata:getAll',
   achievementsGet: 'achievements:get',
