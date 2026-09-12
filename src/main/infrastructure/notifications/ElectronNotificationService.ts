@@ -57,6 +57,36 @@ export class ElectronNotificationService implements NotificationService {
     void this.show(deal)
   }
 
+  notifyDealsBatch(deals: GameDeal[]): void {
+    const { quietHoursStart, quietHoursEnd } = this.settingsRepository.get().polling
+    if (isWithinQuietHours(quietHoursStart, quietHoursEnd)) {
+      logger.info(`Notificação em lote de ${deals.length} oferta(s) suprimida (quiet hours).`)
+      return
+    }
+
+    this.showBatch(deals)
+  }
+
+  private showBatch(deals: GameDeal[]): void {
+    const notification = new Notification({
+      title: `🎮 ${deals.length} novas ofertas encontradas`,
+      body: 'Abra o GamePriceAnalyzer pra conferir.',
+      icon: nativeImage.createFromPath(getAppIconPath()),
+      silent: false
+    })
+
+    notification.on('click', () => {
+      const window = this.getMainWindow()
+      if (!window) return
+      window.show()
+      window.focus()
+    })
+
+    notification.show()
+
+    this.getMainWindow()?.webContents.send(IPC_CHANNELS.dealsBatchFoundEvent, deals)
+  }
+
   private async show(deal: GameDeal): Promise<void> {
     const best = getBestCurrentPrice(deal)
     const priceText = best ? `${deal.currency} ${best.price.toFixed(2)} · ${best.label}` : 'Oferta encontrada'

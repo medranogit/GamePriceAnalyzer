@@ -80,6 +80,11 @@ const api = {
     const listener = (_event: Electron.IpcRendererEvent, deal: GameDeal): void => callback(deal)
     ipcRenderer.on(IPC_CHANNELS.dealsFoundEvent, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.dealsFoundEvent, listener)
+  },
+  onDealsBatchFound: (callback: (deals: GameDeal[]) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, deals: GameDeal[]): void => callback(deals)
+    ipcRenderer.on(IPC_CHANNELS.dealsBatchFoundEvent, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.dealsBatchFoundEvent, listener)
   }
 }
 

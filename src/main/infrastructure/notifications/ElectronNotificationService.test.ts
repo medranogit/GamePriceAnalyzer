@@ -172,4 +172,30 @@ describe('ElectronNotificationService', () => {
 
     expect(NotificationMock.instances[0].body).toBe('Oferta encontrada')
   })
+
+  it('notifyDealsBatch dispara uma única notificação resumindo várias ofertas de uma vez', () => {
+    const settingsRepository = makeSettingsRepository(null, null)
+    const send = vi.fn()
+    const getMainWindow = vi.fn(() => ({ webContents: { send } }) as never)
+    const service = new ElectronNotificationService(getMainWindow, settingsRepository)
+
+    const deals = [makeDeal({ appId: 1 }), makeDeal({ appId: 2 }), makeDeal({ appId: 3 })]
+    service.notifyDealsBatch(deals)
+
+    expect(NotificationMock.instances).toHaveLength(1)
+    expect(NotificationMock.instances[0].title).toBe('🎮 3 novas ofertas encontradas')
+    expect(send).toHaveBeenCalledWith(IPC_CHANNELS.dealsBatchFoundEvent, deals)
+  })
+
+  it('notifyDealsBatch não dispara nada dentro do horário silencioso', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T23:30:00'))
+
+    const settingsRepository = makeSettingsRepository('22:00', '08:00')
+    const service = new ElectronNotificationService(() => null, settingsRepository)
+
+    service.notifyDealsBatch([makeDeal()])
+
+    expect(NotificationMock.instances).toHaveLength(0)
+  })
 })

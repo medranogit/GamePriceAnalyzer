@@ -6,15 +6,25 @@ import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SettingsRepository } from '../repositories/SettingsRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
+const BATCH_NOTIFICATION_THRESHOLD = 5
+
 export interface NotificationService {
   notifyDeal(deal: GameDeal): void
+  /** Uma única notificação resumindo várias ofertas de uma vez — ver BATCH_NOTIFICATION_THRESHOLD. */
+  notifyDealsBatch(deals: GameDeal[]): void
 }
 
 /**
  * Executado a cada tick do polling em background. Reaproveita FetchOwnableDeals
- * (que traz TUDO, sem filtro) e só notifica quem realmente vale a pena —
- * desconto mínimo configurado OU menor preço histórico do GG.deals — e uma
- * vez por preço (só notifica de novo se o preço cair ainda mais).
+ * (que traz TUDO, sem filtro) e só notifica quem realmente vale a pena, segundo
+ * a regra configurável em Configurações (`polling.notifyMinDiscountPercent` /
+ * `notifyOnHistoricalLow` — independente do filtro de exibição do Dashboard) —
+ * e uma vez por preço (só notifica de novo se o preço cair ainda mais).
+ *
+ * Se muitas ofertas qualificarem no mesmo tick (ex: um backfill de metadata
+ * que revela um monte de desconto de keyshop de uma vez), notificar uma por
+ * uma inunda o SO com notificações quase simultâneas. Acima de
+ * BATCH_NOTIFICATION_THRESHOLD, agrupa tudo numa notificação única.
  */
 export class CheckDealAlerts {
   constructor(
@@ -31,39 +41,59 @@ export class CheckDealAlerts {
 
     try {
       const deals = await this.fetchOwnableDeals.execute()
-      const { minDiscountPercent } = this.settingsRepository.get().filters
-      const newlyNotified: GameDeal[] = []
+      const { notifyMinDiscountPercent, notifyOnHistoricalLow } = this.settingsRepository.get().polling
 
+      const toNotify: Array<{ deal: GameDeal; appId: number; price: number; label: string }> = []
       for (const deal of deals) {
+        if (deal.appId === null) continue
         const best = getBestCurrentPrice(deal)
-        if (deal.appId === null || !best) continue
-        if (!qualifiesAsDeal(deal, minDiscountPercent)) continue
+        const qualifies =
+          best !== null &&
+          qualifiesAsDeal(deal, { minDiscountPercent: notifyMinDiscountPercent, notifyOnHistoricalLow })
 
-        const price = best.price
-        if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, price)) continue
+        if (!best || !qualifies) {
+          // Preço voltou ao normal (ou não qualifica mais) — esquece, pra notificar de novo na
+          // próxima vez que voltar a qualificar, mesmo que o novo preço não seja o mais baixo já visto.
+          this.notifiedDealsRepository.clearForAppId(deal.appId)
+          continue
+        }
+        if (this.notifiedDealsRepository.alreadyNotifiedForPrice(deal.appId, best.price)) continue
+        toNotify.push({ deal, appId: deal.appId, price: best.price, label: best.label })
+      }
 
-        this.notificationService.notifyDeal(deal)
+      const isBurst = toNotify.length > BATCH_NOTIFICATION_THRESHOLD
+      if (isBurst) {
+        this.notificationService.notifyDealsBatch(toNotify.map((item) => item.deal))
+        this.sessionLogRepository.log(
+          'warn',
+          `${toNotify.length} ofertas qualificaram no mesmo ciclo — agrupadas numa notificação única pra não inundar o sistema.`
+        )
+      }
+
+      for (const { deal, appId, price, label } of toNotify) {
+        if (!isBurst) {
+          this.notificationService.notifyDeal(deal)
+        }
         this.notifiedDealsRepository.markNotified({
-          appId: deal.appId,
+          appId,
           lastNotifiedPrice: price,
           lastNotifiedAt: new Date().toISOString()
         })
         this.historyRepository.addEvent(
           'deal_found',
-          `${deal.title}: ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+          `${deal.title}: ${deal.currency ?? ''} ${price.toFixed(2)} (${label})`.trim()
         )
         this.sessionLogRepository.log(
           'success',
-          `Oferta notificada: ${deal.title} — ${deal.currency ?? ''} ${price.toFixed(2)} (${best.label})`.trim()
+          `Oferta notificada: ${deal.title} — ${deal.currency ?? ''} ${price.toFixed(2)} (${label})`.trim()
         )
-        newlyNotified.push(deal)
       }
 
       this.sessionLogRepository.log(
         'success',
-        `Busca de ofertas concluída: ${deals.length} jogo(s) analisado(s), ${newlyNotified.length} notificação(ões) disparada(s).`
+        `Busca de ofertas concluída: ${deals.length} jogo(s) analisado(s), ${toNotify.length} notificação(ões) disparada(s).`
       )
-      return newlyNotified
+      return toNotify.map((item) => item.deal)
     } catch (error) {
       this.sessionLogRepository.log(
         'error',

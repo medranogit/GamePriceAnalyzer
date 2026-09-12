@@ -12,7 +12,7 @@ import { LibraryGameDetailPage } from '@renderer/pages/LibraryGameDetail/Library
 import { HistoryPage } from '@renderer/pages/History/HistoryPage'
 import { LogSessaoPage } from '@renderer/pages/LogSessao/LogSessaoPage'
 import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
-import { useDealsFoundListener } from '@renderer/hooks/useDeals'
+import { useDealsFoundListener, useDealsBatchFoundListener } from '@renderer/hooks/useDeals'
 import { playAlertSound } from '@renderer/lib/playAlertSound'
 import type { GameDeal } from '@shared/types'
 import { getBestCurrentPrice, getDisplayDiscountPercent } from '@shared/dealPricing'
@@ -89,7 +89,30 @@ export function App() {
     [api]
   )
 
+  const handleDealsBatchFound = useCallback(
+    (deals: GameDeal[]) => {
+      playAlertSound()
+      api.open({
+        message: (
+          <NotificationRow>
+            <FallbackIcon>
+              <ThunderboltFilled />
+            </FallbackIcon>
+            <div>
+              <NotificationTitle>{deals.length} novas ofertas encontradas</NotificationTitle>
+              <NotificationDescription>Confira no Dashboard.</NotificationDescription>
+            </div>
+          </NotificationRow>
+        ),
+        description: null,
+        placement: 'bottomRight'
+      })
+    },
+    [api]
+  )
+
   useDealsFoundListener(handleDealFound)
+  useDealsBatchFoundListener(handleDealsBatchFound)
 
   return (
     <>

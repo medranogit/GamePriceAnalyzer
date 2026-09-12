@@ -25,7 +25,8 @@ export const IPC_CHANNELS = {
   secretsStatus: 'secrets:status',
   secretsSetSteamApiKey: 'secrets:setSteamApiKey',
   secretsSetGGDealsApiKey: 'secrets:setGGDealsApiKey',
-  dealsFoundEvent: 'event:dealsFound'
+  dealsFoundEvent: 'event:dealsFound',
+  dealsBatchFoundEvent: 'event:dealsBatchFound'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

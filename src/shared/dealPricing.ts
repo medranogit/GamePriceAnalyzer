@@ -52,7 +52,15 @@ export function getDisplayDiscountPercent(deal: GameDeal): number {
   return getEffectiveDiscountPercent(deal) ?? deal.steamDiscountPercent ?? 0
 }
 
-/** Vale notificar/considerar "oferta boa": desconto mínimo (efetivo ou da Steam) OU menor preço histórico do GG.deals. */
-export function qualifiesAsDeal(deal: GameDeal, minDiscountPercent: number): boolean {
-  return getDisplayDiscountPercent(deal) >= minDiscountPercent || isAtOrBelowHistoricalLow(deal)
+export interface DealAlertRules {
+  minDiscountPercent: number
+  notifyOnHistoricalLow: boolean
+}
+
+/** Vale notificar/considerar "oferta boa": desconto mínimo (efetivo ou da Steam) OU (se habilitado) menor preço histórico do GG.deals. */
+export function qualifiesAsDeal(deal: GameDeal, rules: DealAlertRules): boolean {
+  return (
+    getDisplayDiscountPercent(deal) >= rules.minDiscountPercent ||
+    (rules.notifyOnHistoricalLow && isAtOrBelowHistoricalLow(deal))
+  )
 }

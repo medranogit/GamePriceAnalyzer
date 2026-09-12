@@ -132,28 +132,35 @@ describe('getDisplayDiscountPercent', () => {
 })
 
 describe('qualifiesAsDeal', () => {
+  const defaultRules = { minDiscountPercent: 50, notifyOnHistoricalLow: true }
+
   it('qualifica quando o desconto da Steam atinge o mínimo', () => {
     const deal = makeDeal({ steamDiscountPercent: 50 })
-    expect(qualifiesAsDeal(deal, 50)).toBe(true)
+    expect(qualifiesAsDeal(deal, defaultRules)).toBe(true)
   })
 
   it('não qualifica quando o desconto da Steam fica abaixo do mínimo e não é preço histórico mínimo', () => {
     const deal = makeDeal({ steamDiscountPercent: 30 })
-    expect(qualifiesAsDeal(deal, 50)).toBe(false)
+    expect(qualifiesAsDeal(deal, defaultRules)).toBe(false)
   })
 
   it('qualifica pelo menor preço histórico mesmo sem desconto suficiente na Steam', () => {
     const deal = makeDeal({ steamDiscountPercent: 10, currentRetailPrice: 40, historicalRetailLow: 40 })
-    expect(qualifiesAsDeal(deal, 50)).toBe(true)
+    expect(qualifiesAsDeal(deal, defaultRules)).toBe(true)
   })
 
   it('qualifica por desconto forte de keyshop mesmo sem desconto ativo na Steam', () => {
     const deal = makeDeal({ currentKeyshopPrice: 10.43, steamFullPrice: 99.9, steamDiscountPercent: null })
-    expect(qualifiesAsDeal(deal, 50)).toBe(true)
+    expect(qualifiesAsDeal(deal, defaultRules)).toBe(true)
   })
 
   it('trata desconto ausente (null) como zero', () => {
     const deal = makeDeal({ steamDiscountPercent: null })
-    expect(qualifiesAsDeal(deal, 1)).toBe(false)
+    expect(qualifiesAsDeal(deal, { minDiscountPercent: 1, notifyOnHistoricalLow: true })).toBe(false)
+  })
+
+  it('não qualifica pelo menor preço histórico quando notifyOnHistoricalLow está desligado', () => {
+    const deal = makeDeal({ steamDiscountPercent: 10, currentRetailPrice: 40, historicalRetailLow: 40 })
+    expect(qualifiesAsDeal(deal, { minDiscountPercent: 50, notifyOnHistoricalLow: false })).toBe(false)
   })
 })

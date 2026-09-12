@@ -32,3 +32,10 @@ export function useDealsFoundListener(onFound: (deal: GameDeal) => void): void {
     return unsubscribe
   }, [onFound])
 }
+
+export function useDealsBatchFoundListener(onFound: (deals: GameDeal[]) => void): void {
+  useEffect(() => {
+    const unsubscribe = window.api.onDealsBatchFound(onFound)
+    return unsubscribe
+  }, [onFound])
+}

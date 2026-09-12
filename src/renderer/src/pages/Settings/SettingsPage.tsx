@@ -154,6 +154,36 @@ export function SettingsPage() {
             />
           </Form.Item>
 
+          <Form.Item
+            label="Desconto mínimo pra notificar"
+            extra="A partir de quantos % de desconto (efetivo, comparado ao preço cheio da Steam, ou o desconto ativo na própria Steam) uma oferta deve notificar. Independente do filtro de exibição do Dashboard."
+          >
+            <InputNumber
+              min={0}
+              max={95}
+              addonAfter="%"
+              value={settings.polling.notifyMinDiscountPercent}
+              onChange={(value) =>
+                value !== null &&
+                updateSettings.mutate({
+                  polling: { ...settings.polling, notifyMinDiscountPercent: value }
+                })
+              }
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Notificar também no menor preço histórico"
+            extra="Notifica mesmo quando o desconto não atinge o mínimo acima, se o preço atual já é o menor que o GG.deals já registrou pra esse jogo."
+          >
+            <Switch
+              checked={settings.polling.notifyOnHistoricalLow}
+              onChange={(checked) =>
+                updateSettings.mutate({ polling: { ...settings.polling, notifyOnHistoricalLow: checked } })
+              }
+            />
+          </Form.Item>
+
           <Form.Item label="Modo silencioso (não notificar)">
             <Space>
               <TimePicker

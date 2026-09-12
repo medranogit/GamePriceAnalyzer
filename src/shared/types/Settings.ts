@@ -12,6 +12,10 @@ export interface PollingSettings {
   wishlistSyncIntervalMinutes: number
   quietHoursStart: string | null
   quietHoursEnd: string | null
+  /** Desconto mínimo (efetivo ou da Steam) pra disparar notificação — independente do filtro de exibição do Dashboard. */
+  notifyMinDiscountPercent: number
+  /** Notifica também quando o preço já é o menor histórico do GG.deals, mesmo sem atingir o desconto mínimo acima. */
+  notifyOnHistoricalLow: boolean
 }
 
 export interface AppSettings {
@@ -36,6 +40,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     intervalMinutes: 60,
     wishlistSyncIntervalMinutes: 60,
     quietHoursStart: null,
-    quietHoursEnd: null
+    quietHoursEnd: null,
+    notifyMinDiscountPercent: 50,
+    notifyOnHistoricalLow: true
   }
 }
