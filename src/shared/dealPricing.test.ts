@@ -23,6 +23,7 @@ function makeDeal(overrides: Partial<GameDeal> = {}): GameDeal {
     steamPrice: null,
     steamDiscountPercent: null,
     steamFullPrice: null,
+    shortDescription: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

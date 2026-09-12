@@ -10,6 +10,7 @@ interface AppDetailsResponse {
       name?: string
       genres?: Array<{ id: string; description: string }>
       header_image?: string
+      short_description?: string
       price_overview?: {
         initial: number
         final: number
@@ -50,7 +51,8 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
         headerImageUrl: entry.data.header_image ?? null,
         steamPrice: entry.data.price_overview ? entry.data.price_overview.final / 100 : null,
         steamDiscountPercent: entry.data.price_overview?.discount_percent ?? null,
-        steamFullPrice: entry.data.price_overview ? entry.data.price_overview.initial / 100 : null
+        steamFullPrice: entry.data.price_overview ? entry.data.price_overview.initial / 100 : null,
+        shortDescription: entry.data.short_description ?? null
       }
     } catch (error) {
       logger.warn(`Falha ao buscar metadata do appId ${appId}`, error)

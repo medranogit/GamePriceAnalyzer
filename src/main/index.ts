@@ -17,6 +17,7 @@ import { GGDealsApiClient } from './infrastructure/ggdeals/GGDealsApiClient'
 import { DealsRepositoryImpl } from './infrastructure/ggdeals/DealsRepositoryImpl'
 import { ElectronNotificationService } from './infrastructure/notifications/ElectronNotificationService'
 import { PollingScheduler } from './infrastructure/scheduler/PollingScheduler'
+import { LastRunScheduler } from './infrastructure/scheduler/LastRunScheduler'
 import { TrayController } from './infrastructure/tray/TrayController'
 import { AutoLaunchService } from './infrastructure/autostart/AutoLaunchService'
 import { JsonPriceHistoryRepository } from './infrastructure/storage/JsonPriceHistoryRepository'
@@ -29,6 +30,7 @@ import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
 import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
+import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 
@@ -161,6 +163,11 @@ async function bootstrap(): Promise<void> {
     cacheRepository,
     sessionLogRepository
   )
+  const resolveMissingMetadata = new ResolveMissingMetadata(
+    cacheRepository,
+    metadataRepository,
+    sessionLogRepository
+  )
 
   mainWindow = createMainWindow()
 
@@ -175,9 +182,13 @@ async function bootstrap(): Promise<void> {
   )
 
   const pollingStateRepository = new JsonPollingStateRepository()
-  const scheduler = new PollingScheduler(async () => {
-    await checkDealAlerts.execute()
-  }, pollingStateRepository)
+  const scheduler = new PollingScheduler(
+    async () => {
+      await checkDealAlerts.execute()
+    },
+    pollingStateRepository,
+    sessionLogRepository
+  )
   scheduler.start(settingsRepository.get().polling.intervalMinutes)
 
   const trayController = new TrayController(
@@ -188,20 +199,30 @@ async function bootstrap(): Promise<void> {
 
   autoLaunchService.setEnabled(settingsRepository.get().autoStartOnBoot)
 
-  // Mantém a wishlist sempre atualizada sozinha — uma vez ao abrir, e depois 1x por dia.
-  // Sem necessidade de reimportar o JSON manualmente.
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000
-  const syncWishlistIfConfigured = async (): Promise<void> => {
-    const steamId64 = settingsRepository.get().steamId64
-    if (!steamId64) return
-    try {
+  // Mantém a wishlist sempre atualizada sozinha, desde a última sincronização
+  // real (não a cada vez que o app abre) — intervalo configurável em
+  // Configurações, sem martelar o rate limit informal da Steam.
+  const wishlistSyncStateRepository = new JsonPollingStateRepository('wishlist-sync-state.json')
+  const wishlistSyncScheduler = new LastRunScheduler(
+    'Atualização de Wishlist',
+    async () => {
+      const steamId64 = settingsRepository.get().steamId64
+      if (!steamId64) return
       await syncSteamWishlist.execute(steamId64)
-    } catch (error) {
-      logger.error('Falha ao sincronizar wishlist com a Steam', error)
-    }
-  }
-  void syncWishlistIfConfigured()
-  setInterval(() => void syncWishlistIfConfigured(), ONE_DAY_MS)
+    },
+    wishlistSyncStateRepository,
+    sessionLogRepository,
+    settingsRepository.get().polling.wishlistSyncIntervalMinutes
+  )
+  wishlistSyncScheduler.start()
+
+  // Ping periódico no Log da Sessão com quanto falta pra próxima busca/sync,
+  // pra acompanhar sem precisar esperar o próprio evento acontecer.
+  const STATUS_PING_INTERVAL_MS = 5 * 60 * 1000
+  setInterval(() => {
+    scheduler.logStatus()
+    wishlistSyncScheduler.logStatus()
+  }, STATUS_PING_INTERVAL_MS)
 
   registerIpcHandlers({
     settingsRepository,
@@ -217,8 +238,11 @@ async function bootstrap(): Promise<void> {
     secretsStore,
     autoLaunchService,
     notificationService,
+    notifiedDealsRepository,
+    resolveMissingMetadata,
     sessionLogRepository,
-    pollingStateRepository
+    pollingStateRepository,
+    wishlistSyncScheduler
   })
 
   app.on('activate', () => {

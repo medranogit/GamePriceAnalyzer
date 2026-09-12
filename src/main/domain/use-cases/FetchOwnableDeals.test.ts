@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GameDeal, GameMetadata, OwnedGame, WishlistItem } from '@shared/types'
 import type { DealsRepository } from '../repositories/DealsRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
@@ -11,7 +11,8 @@ function makeSessionLogRepository(): SessionLogRepository {
     log: vi.fn(),
     endSession: vi.fn(),
     listSessions: () => [],
-    getEntries: () => []
+    getEntries: () => [],
+    deleteSession: vi.fn()
   }
 }
 
@@ -47,6 +48,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     steamPrice: null,
     steamDiscountPercent: null,
     steamFullPrice: null,
+    shortDescription: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -69,6 +71,10 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
 }
 
 describe('FetchOwnableDeals', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('não consulta a API quando não há candidatos na wishlist', async () => {
     const fetchDealsBySteamAppIds = vi.fn()
     const cacheRepository = makeCacheRepository({ getWishlist: () => [] })
@@ -87,6 +93,7 @@ describe('FetchOwnableDeals', () => {
   })
 
   it('descarta jogos já possuídos antes de consultar o GG.deals', async () => {
+    vi.useFakeTimers()
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(
       async (appIds: number[]) => appIds.map((appId) => makeDeal(appId))
     )
@@ -102,12 +109,15 @@ describe('FetchOwnableDeals', () => {
       makeSessionLogRepository()
     )
 
-    await useCase.execute()
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    await resultPromise
 
     expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2])
   })
 
   it('registra observação de preço e enriquece com metadata para cada oferta', async () => {
+    vi.useFakeTimers()
     const recordObservation = vi.fn()
     const metadata: GameMetadata = {
       appId: 2,
@@ -116,7 +126,8 @@ describe('FetchOwnableDeals', () => {
       headerImageUrl: 'https://example.com/cover.jpg',
       steamPrice: 99.9,
       steamDiscountPercent: 40,
-      steamFullPrice: 99.9
+      steamFullPrice: 99.9,
+      shortDescription: null
     }
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
@@ -130,7 +141,9 @@ describe('FetchOwnableDeals', () => {
       makeSessionLogRepository()
     )
 
-    const result = await useCase.execute()
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
 
     expect(recordObservation).toHaveBeenCalledWith(2, 'BRL', 60, 55)
     expect(result[0].genres).toEqual(['RPG'])
@@ -138,6 +151,39 @@ describe('FetchOwnableDeals', () => {
     expect(result[0].steamPrice).toBe(99.9)
     expect(result[0].steamDiscountPercent).toBe(40)
     expect(cacheRepository.setDeals).toHaveBeenCalledWith(result)
+  })
+
+  it('respeita uma pausa entre chamadas de metadata pra AppIDs novos, pra não estourar o rate limit da Steam', async () => {
+    vi.useFakeTimers()
+    const fetchMetadata = vi.fn(async () => null)
+    const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [
+      makeDeal(1),
+      makeDeal(2)
+    ])
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2)]
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository()
+    )
+
+    const resultPromise = useCase.execute()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1499)
+    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchMetadata).toHaveBeenCalledTimes(2)
+
+    // o segundo AppID (o último do lote) também tem sua própria pausa antes de terminar
+    await vi.runAllTimersAsync()
+    await resultPromise
   })
 
   it('reaproveita metadata já cacheada sem chamar o repositório de novo', async () => {
@@ -148,7 +194,8 @@ describe('FetchOwnableDeals', () => {
       headerImageUrl: null,
       steamPrice: null,
       steamDiscountPercent: null,
-      steamFullPrice: null
+      steamFullPrice: null,
+      shortDescription: null
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [

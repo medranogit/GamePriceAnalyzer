@@ -24,4 +24,8 @@ export class ElectronStoreNotifiedDealsRepository implements NotifiedDealsReposi
     const current = this.store.read()
     this.store.write({ records: { ...current.records, [String(record.appId)]: record } })
   }
+
+  clear(): void {
+    this.store.write({ records: {} })
+  }
 }

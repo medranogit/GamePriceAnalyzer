@@ -8,6 +8,7 @@ export interface FilterSettings {
 
 export interface PollingSettings {
   intervalMinutes: number
+  wishlistSyncIntervalMinutes: number
   quietHoursStart: string | null
   quietHoursEnd: string | null
 }
@@ -30,9 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     selectedGenres: []
   },
   polling: {
-    // 65 (não 60) de propósito: dá uma margem além da janela de 1h do rate
-    // limit do GG.deals, em vez de bater exatamente na borda.
-    intervalMinutes: 65,
+    intervalMinutes: 60,
+    wishlistSyncIntervalMinutes: 60,
     quietHoursStart: null,
     quietHoursEnd: null
   }

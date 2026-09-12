@@ -13,4 +13,5 @@ export interface SessionLogRepository {
   endSession(): void
   listSessions(): SessionLogSession[]
   getEntries(sessionId: string): SessionLogEntry[]
+  deleteSession(sessionId: string): void
 }

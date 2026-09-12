@@ -43,8 +43,13 @@ const api = {
     getStatus: (): Promise<{ lastRunAt: string | null; intervalMinutes: number }> =>
       ipcRenderer.invoke(IPC_CHANNELS.pollingGetStatus)
   },
+  metadata: {
+    resolveMissing: (): Promise<{ resolved: number; failed: number; synced: number }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveMissing)
+  },
   notifications: {
-    test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest)
+    test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest),
+    clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notifiedDealsClear)
   },
   secrets: {
     status: (): Promise<{ hasSteamApiKey: boolean; hasGGDealsApiKey: boolean }> =>
@@ -60,7 +65,9 @@ const api = {
   sessionLog: {
     getSessions: (): Promise<SessionLogSession[]> => ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetSessions),
     getEntries: (sessionId: string): Promise<SessionLogEntry[]> =>
-      ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetEntries, sessionId)
+      ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetEntries, sessionId),
+    deleteSession: (sessionId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.sessionLogDeleteSession, sessionId)
   },
   onDealsFound: (callback: (deal: GameDeal) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, deal: GameDeal): void => callback(deal)

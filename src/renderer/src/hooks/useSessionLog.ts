@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useSessionLogSessions() {
   return useQuery({
@@ -14,5 +14,16 @@ export function useSessionLogEntries(sessionId: string | null) {
     queryFn: () => window.api.sessionLog.getEntries(sessionId as string),
     enabled: sessionId !== null,
     refetchInterval: 3000
+  })
+}
+
+export function useDeleteSessionLogSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (sessionId: string) => window.api.sessionLog.deleteSession(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session-log-sessions'] })
+      void queryClient.invalidateQueries({ queryKey: ['session-log-entries'] })
+    }
   })
 }

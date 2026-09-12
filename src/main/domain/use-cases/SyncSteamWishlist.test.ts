@@ -12,7 +12,8 @@ function makeSessionLogRepository(): SessionLogRepository {
     log: vi.fn(),
     endSession: vi.fn(),
     listSessions: () => [],
-    getEntries: () => []
+    getEntries: () => [],
+    deleteSession: vi.fn()
   }
 }
 
@@ -83,7 +84,8 @@ describe('SyncSteamWishlist', () => {
       headerImageUrl: null,
       steamPrice: null,
       steamDiscountPercent: null,
-      steamFullPrice: null
+      steamFullPrice: null,
+      shortDescription: null
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])
@@ -150,7 +152,8 @@ describe('SyncSteamWishlist', () => {
       headerImageUrl: null,
       steamPrice: null,
       steamDiscountPercent: null,
-      steamFullPrice: null
+      steamFullPrice: null,
+      shortDescription: null
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])

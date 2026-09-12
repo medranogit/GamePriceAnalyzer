@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PollingStateRepository } from '../../domain/repositories/PollingStateRepository'
+import type { SessionLogRepository } from '../../domain/repositories/SessionLogRepository'
 import { PollingScheduler } from './PollingScheduler'
 
 vi.mock('../logging/logger', () => ({
@@ -16,6 +17,17 @@ function makeFakePollingStateRepository(initialLastRunAt: string | null = null):
   }
 }
 
+function makeFakeSessionLogRepository(): SessionLogRepository {
+  return {
+    startSession: vi.fn(() => 'session-id'),
+    log: vi.fn(),
+    endSession: vi.fn(),
+    listSessions: () => [],
+    getEntries: () => [],
+    deleteSession: vi.fn()
+  }
+}
+
 describe('PollingScheduler', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -27,7 +39,11 @@ describe('PollingScheduler', () => {
 
   it('dispara a busca imediatamente quando nunca rodou antes', async () => {
     const onTick = vi.fn().mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(null))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(null),
+      makeFakeSessionLogRepository()
+    )
 
     scheduler.start(65)
     await vi.advanceTimersByTimeAsync(0)
@@ -38,7 +54,11 @@ describe('PollingScheduler', () => {
   it('não dispara imediatamente se o intervalo desde a última execução ainda não passou', async () => {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
     const onTick = vi.fn().mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(twoMinutesAgo))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(twoMinutesAgo),
+      makeFakeSessionLogRepository()
+    )
 
     scheduler.start(65)
     await vi.advanceTimersByTimeAsync(0)
@@ -52,7 +72,11 @@ describe('PollingScheduler', () => {
   it('dispara imediatamente se já passou do intervalo desde a última execução', async () => {
     const seventyMinutesAgo = new Date(Date.now() - 70 * 60 * 1000).toISOString()
     const onTick = vi.fn().mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(seventyMinutesAgo))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(seventyMinutesAgo),
+      makeFakeSessionLogRepository()
+    )
 
     scheduler.start(65)
     await vi.advanceTimersByTimeAsync(0)
@@ -62,7 +86,11 @@ describe('PollingScheduler', () => {
 
   it('runNow roda na hora e empurra a próxima busca automática pra depois dela', async () => {
     const onTick = vi.fn().mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(null))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(null),
+      makeFakeSessionLogRepository()
+    )
 
     scheduler.start(65)
     await vi.advanceTimersByTimeAsync(0)
@@ -82,7 +110,11 @@ describe('PollingScheduler', () => {
       resolveFirstTick = resolve
     })
     const onTick = vi.fn().mockReturnValueOnce(firstTick).mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(null))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(null),
+      makeFakeSessionLogRepository()
+    )
 
     scheduler.start(65)
     await vi.advanceTimersByTimeAsync(0) // dispara a primeira busca (automática), ainda pendente
@@ -96,7 +128,11 @@ describe('PollingScheduler', () => {
 
   it('erro numa busca não trava buscas futuras', async () => {
     const onTick = vi.fn().mockRejectedValueOnce(new Error('falhou')).mockResolvedValue(undefined)
-    const scheduler = new PollingScheduler(onTick, makeFakePollingStateRepository(null))
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(null),
+      makeFakeSessionLogRepository()
+    )
 
     await scheduler.runNow()
     await scheduler.runNow()

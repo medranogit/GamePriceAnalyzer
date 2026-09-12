@@ -6,14 +6,16 @@ import {
   Form,
   Input,
   InputNumber,
+  Popconfirm,
   Space,
   Switch,
   TimePicker,
   Typography,
   message
 } from 'antd'
-import { NotificationOutlined, SyncOutlined } from '@ant-design/icons'
+import { ClearOutlined, NotificationOutlined, PictureOutlined, SyncOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
 
@@ -22,11 +24,14 @@ const { Title, Text } = Typography
 export function SettingsPage() {
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
+  const queryClient = useQueryClient()
   const { data: secretsStatus } = useSecretsStatus()
   const setSteamApiKey = useSetSteamApiKey()
   const setGGDealsApiKey = useSetGGDealsApiKey()
   const [testingNotifications, setTestingNotifications] = useState(false)
+  const [clearingNotifications, setClearingNotifications] = useState(false)
   const [checkingDealsNow, setCheckingDealsNow] = useState(false)
+  const [resolvingMetadata, setResolvingMetadata] = useState(false)
 
   const [steamId64Input, setSteamId64Input] = useState('')
   const [steamApiKeyInput, setSteamApiKeyInput] = useState('')
@@ -124,13 +129,27 @@ export function SettingsPage() {
 
       <Card title="Verificação em background">
         <Form layout="vertical">
-          <Form.Item label="Intervalo de checagem (minutos)">
+          <Form.Item label="Intervalo de busca de ofertas (minutos)">
             <InputNumber
               min={5}
               max={240}
               value={settings.polling.intervalMinutes}
               onChange={(value) =>
                 value && updateSettings.mutate({ polling: { ...settings.polling, intervalMinutes: value } })
+              }
+            />
+          </Form.Item>
+
+          <Form.Item label="Intervalo de atualização da wishlist (minutos)">
+            <InputNumber
+              min={5}
+              max={240}
+              value={settings.polling.wishlistSyncIntervalMinutes}
+              onChange={(value) =>
+                value &&
+                updateSettings.mutate({
+                  polling: { ...settings.polling, wishlistSyncIntervalMinutes: value }
+                })
               }
             />
           </Form.Item>
@@ -174,6 +193,8 @@ export function SettingsPage() {
                 setCheckingDealsNow(true)
                 try {
                   await window.api.polling.triggerNow()
+                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
+                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
                   message.success('Busca de ofertas concluída.')
                 } catch (error) {
                   showError(error)
@@ -183,6 +204,33 @@ export function SettingsPage() {
               }}
             >
               Procurar ofertas agora
+            </Button>
+          </Form.Item>
+
+          <Form.Item
+            label="Buscar metadados da Steam agora"
+            extra="Resolve capa e gênero (via Steam) só de quem ainda não tem isso em cache — sem mexer em preço/GG.deals. Útil pra preencher capas faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
+          >
+            <Button
+              icon={<PictureOutlined />}
+              loading={resolvingMetadata}
+              onClick={async () => {
+                setResolvingMetadata(true)
+                try {
+                  const result = await window.api.metadata.resolveMissing()
+                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
+                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+                  message.success(
+                    `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
+                  )
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setResolvingMetadata(false)
+                }
+              }}
+            >
+              Buscar metadados da Steam agora
             </Button>
           </Form.Item>
 
@@ -215,6 +263,32 @@ export function SettingsPage() {
             >
               Disparar 3 notificações de teste
             </Button>
+          </Form.Item>
+
+          <Form.Item
+            label="Limpar histórico de notificações"
+            extra="Esquece o que já foi notificado — ofertas que ainda estão qualificando podem notificar de novo na próxima busca. Útil se veio um monte de notificação de uma vez e você quer resetar."
+          >
+            <Popconfirm
+              title="Limpar todo o histórico de notificações?"
+              okText="Limpar"
+              cancelText="Cancelar"
+              onConfirm={async () => {
+                setClearingNotifications(true)
+                try {
+                  await window.api.notifications.clearHistory()
+                  message.success('Histórico de notificações limpo.')
+                } catch (error) {
+                  showError(error)
+                } finally {
+                  setClearingNotifications(false)
+                }
+              }}
+            >
+              <Button icon={<ClearOutlined />} loading={clearingNotifications} danger>
+                Limpar notificações
+              </Button>
+            </Popconfirm>
           </Form.Item>
         </Form>
       </Card>

@@ -21,7 +21,8 @@ export function useDeals() {
 export function useWishlistDealsCache() {
   return useQuery({
     queryKey: ['wishlist-deals-cache'],
-    queryFn: () => window.api.deals.getWishlistCached()
+    queryFn: () => window.api.deals.getWishlistCached(),
+    refetchInterval: 60_000
   })
 }
 

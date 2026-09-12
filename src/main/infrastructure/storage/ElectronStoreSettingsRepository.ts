@@ -6,7 +6,13 @@ export class ElectronStoreSettingsRepository implements SettingsRepository {
   private readonly store = new JsonFileStore<AppSettings>('settings.json', DEFAULT_SETTINGS)
 
   get(): AppSettings {
-    return this.store.read()
+    const stored = this.store.read()
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      filters: { ...DEFAULT_SETTINGS.filters, ...stored.filters },
+      polling: { ...DEFAULT_SETTINGS.polling, ...stored.polling }
+    }
   }
 
   update(partial: Partial<AppSettings>): AppSettings {

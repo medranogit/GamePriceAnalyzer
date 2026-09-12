@@ -6,7 +6,11 @@ interface PollingStateSchema {
 }
 
 export class JsonPollingStateRepository implements PollingStateRepository {
-  private readonly store = new JsonFileStore<PollingStateSchema>('polling-state.json', { lastRunAt: null })
+  private readonly store: JsonFileStore<PollingStateSchema>
+
+  constructor(fileName: string = 'polling-state.json') {
+    this.store = new JsonFileStore<PollingStateSchema>(fileName, { lastRunAt: null })
+  }
 
   getLastRunAt(): string | null {
     return this.store.read().lastRunAt

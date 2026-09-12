@@ -74,4 +74,14 @@ export class JsonSessionLogRepository implements SessionLogRepository {
   getEntries(sessionId: string): SessionLogEntry[] {
     return this.store.read().entriesBySessionId[sessionId] ?? []
   }
+
+  deleteSession(sessionId: string): void {
+    const schema = this.store.read()
+    const sessions = schema.sessions.filter((s) => s.id !== sessionId)
+    const { [sessionId]: _removed, ...entriesBySessionId } = schema.entriesBySessionId
+    this.store.write({ sessions, entriesBySessionId })
+    if (this.currentSessionId === sessionId) {
+      this.currentSessionId = null
+    }
+  }
 }

@@ -16,12 +16,17 @@ import type { HistoryRepository } from '../domain/repositories/HistoryRepository
 import type { NotificationService } from '../domain/use-cases/CheckDealAlerts'
 import type { SessionLogRepository } from '../domain/repositories/SessionLogRepository'
 import type { PollingStateRepository } from '../domain/repositories/PollingStateRepository'
+import type { LastRunScheduler } from '../infrastructure/scheduler/LastRunScheduler'
+import type { NotifiedDealsRepository } from '../domain/repositories/NotifiedDealsRepository'
+import type { ResolveMissingMetadata } from '../domain/use-cases/ResolveMissingMetadata'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
   cacheRepository: AppCacheRepository
   historyRepository: HistoryRepository
   notificationService: NotificationService
+  notifiedDealsRepository: NotifiedDealsRepository
+  resolveMissingMetadata: ResolveMissingMetadata
   syncSteamLibrary: SyncSteamLibrary
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
@@ -33,6 +38,7 @@ interface Dependencies {
   autoLaunchService: AutoLaunchService
   sessionLogRepository: SessionLogRepository
   pollingStateRepository: PollingStateRepository
+  wishlistSyncScheduler: LastRunScheduler
 }
 
 export function registerIpcHandlers(deps: Dependencies): void {
@@ -42,6 +48,9 @@ export function registerIpcHandlers(deps: Dependencies): void {
     const updated = deps.settingsRepository.update(partial)
     if (partial.polling?.intervalMinutes) {
       deps.scheduler.updateInterval(updated.polling.intervalMinutes)
+    }
+    if (partial.polling?.wishlistSyncIntervalMinutes) {
+      deps.wishlistSyncScheduler.setIntervalMinutes(updated.polling.wishlistSyncIntervalMinutes)
     }
     if (partial.autoStartOnBoot !== undefined) {
       deps.autoLaunchService.setEnabled(partial.autoStartOnBoot)
@@ -74,7 +83,9 @@ export function registerIpcHandlers(deps: Dependencies): void {
     if (!settings.steamId64) {
       throw new Error('SteamID64 não configurado. Cadastre em Configurações.')
     }
-    return deps.syncSteamWishlist.execute(settings.steamId64)
+    const result = await deps.syncSteamWishlist.execute(settings.steamId64)
+    deps.wishlistSyncScheduler.notifyExternalRun()
+    return result
   })
 
   ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) =>
@@ -106,6 +117,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.sessionLogGetEntries, (_event, sessionId: string) =>
     deps.sessionLogRepository.getEntries(sessionId)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.sessionLogDeleteSession, (_event, sessionId: string) =>
+    deps.sessionLogRepository.deleteSession(sessionId)
   )
 
   ipcMain.handle(IPC_CHANNELS.pollingGetStatus, () => ({
@@ -147,6 +162,12 @@ export function registerIpcHandlers(deps: Dependencies): void {
       await sleep(1500)
     }
   })
+
+  ipcMain.handle(IPC_CHANNELS.notifiedDealsClear, () => {
+    deps.notifiedDealsRepository.clear()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, () => deps.resolveMissingMetadata.execute())
 }
 
 function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
@@ -163,6 +184,7 @@ function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
     steamPrice: null,
     steamDiscountPercent: null,
     steamFullPrice: null,
+    shortDescription: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

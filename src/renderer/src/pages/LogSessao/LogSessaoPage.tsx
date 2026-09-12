@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Button, Empty, Typography } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { Button, Empty, Popconfirm, Typography } from 'antd'
+import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { useQueryClient } from '@tanstack/react-query'
-import { useSessionLogEntries, useSessionLogSessions } from '@renderer/hooks/useSessionLog'
+import {
+  useDeleteSessionLogSession,
+  useSessionLogEntries,
+  useSessionLogSessions
+} from '@renderer/hooks/useSessionLog'
 import type { SessionLogLevel, SessionLogSession } from '@shared/types'
 
 const { Title, Text } = Typography
@@ -30,24 +34,56 @@ const SessionList = styled.div`
   padding-right: 8px;
 `
 
-const SessionItem = styled.button<{ $active: boolean }>`
+const SessionRow = styled.div<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  background: ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
-  color: ${({ $active }) => ($active ? '#fff' : 'inherit')};
-  border: none;
-  border-radius: 8px;
-  padding: 10px 12px;
+  gap: 2px;
   margin-bottom: 4px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
+  border-radius: 8px;
+  background: ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
 
   &:hover {
     background: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.surfaceRaised)};
+  }
+
+  &:hover button[data-delete] {
+    opacity: 1;
+  }
+`
+
+const SessionItem = styled.button<{ $active: boolean }>`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  color: ${({ $active }) => ($active ? '#fff' : 'inherit')};
+  border: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+`
+
+const DeleteButton = styled.button<{ $active: boolean }>`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: ${({ $active }) => ($active ? '#fff' : 'inherit')};
+  opacity: 0;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 `
 
@@ -85,6 +121,7 @@ export function LogSessaoPage() {
   const { data: sessions = [], isLoading } = useSessionLogSessions()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const deleteSession = useDeleteSessionLogSession()
 
   useEffect(() => {
     if (selectedId === null && sessions.length > 0) {
@@ -93,10 +130,18 @@ export function LogSessaoPage() {
   }, [sessions, selectedId])
 
   const { data: entries = [] } = useSessionLogEntries(selectedId)
+  const entriesNewestFirst = [...entries].reverse()
 
   const handleReload = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['session-log-sessions'] })
     void queryClient.invalidateQueries({ queryKey: ['session-log-entries'] })
+  }
+
+  const handleDelete = (sessionId: string): void => {
+    deleteSession.mutate(sessionId)
+    if (sessionId === selectedId) {
+      setSelectedId(null)
+    }
   }
 
   return (
@@ -117,24 +162,34 @@ export function LogSessaoPage() {
       ) : (
         <Layout>
           <SessionList>
-            {sessions.map((session) => (
-              <SessionItem
-                key={session.id}
-                type="button"
-                $active={session.id === selectedId}
-                onClick={() => setSelectedId(session.id)}
-              >
-                <StatusDot $running={session.status === 'running'} />
-                {formatSessionLabel(session)}
-              </SessionItem>
-            ))}
+            {sessions.map((session) => {
+              const isActive = session.id === selectedId
+              return (
+                <SessionRow key={session.id} $active={isActive}>
+                  <SessionItem type="button" $active={isActive} onClick={() => setSelectedId(session.id)}>
+                    <StatusDot $running={session.status === 'running'} />
+                    {formatSessionLabel(session)}
+                  </SessionItem>
+                  <Popconfirm
+                    title="Excluir esta sessão de log?"
+                    okText="Excluir"
+                    cancelText="Cancelar"
+                    onConfirm={() => handleDelete(session.id)}
+                  >
+                    <DeleteButton type="button" data-delete $active={isActive}>
+                      <DeleteOutlined />
+                    </DeleteButton>
+                  </Popconfirm>
+                </SessionRow>
+              )
+            })}
           </SessionList>
 
           <LogPanel>
-            {entries.length === 0 ? (
+            {entriesNewestFirst.length === 0 ? (
               <Text type="secondary">Sem entradas ainda.</Text>
             ) : (
-              entries.map((entry, index) => (
+              entriesNewestFirst.map((entry, index) => (
                 <LogLine key={index} $level={entry.level}>
                   [{dayjs(entry.timestamp).format('HH:mm:ss')}] {entry.message}
                 </LogLine>

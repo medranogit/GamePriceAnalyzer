@@ -6,6 +6,12 @@ import type { PriceHistoryRepository } from '../repositories/PriceHistoryReposit
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
+const STEAM_RATE_LIMIT_DELAY_MS = 1500
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
  * preço/histórico no GG.deals, e descarta o que o usuário já possui — antes
@@ -81,6 +87,15 @@ export class FetchOwnableDeals {
       if (metadata && !cached) {
         this.cacheRepository.setMetadata(metadata)
       }
+      if (!metadata && !cached) {
+        this.sessionLogRepository.log(
+          'warn',
+          `Não consegui metadata da Steam pra "${deal.title}" — tento de novo no próximo ciclo.`
+        )
+      }
+      if (!cached) {
+        await sleep(STEAM_RATE_LIMIT_DELAY_MS)
+      }
 
       enriched.push({
         ...deal,
@@ -88,7 +103,8 @@ export class FetchOwnableDeals {
         coverUrl: deal.coverUrl ?? metadata?.headerImageUrl ?? undefined,
         steamPrice: metadata?.steamPrice ?? null,
         steamDiscountPercent: metadata?.steamDiscountPercent ?? null,
-        steamFullPrice: metadata?.steamFullPrice ?? null
+        steamFullPrice: metadata?.steamFullPrice ?? null,
+        shortDescription: metadata?.shortDescription ?? deal.shortDescription ?? null
       })
     }
 

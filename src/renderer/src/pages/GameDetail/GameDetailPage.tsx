@@ -51,6 +51,10 @@ export function GameDetailPage() {
         ))}
       </div>
 
+      {deal.shortDescription && (
+        <Text style={{ display: 'block', marginBottom: 16 }}>{deal.shortDescription}</Text>
+      )}
+
       {historicalLow !== null && (
         <Text style={{ display: 'block', marginBottom: 16 }}>
           <TrophyOutlined /> Menor preço histórico: {formatPrice(deal.currency, historicalLow)}
