@@ -29,6 +29,7 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     setWishlistDeals: vi.fn(),
     getMetadata: () => null,
     setMetadata: vi.fn(),
+    getAllMetadata: () => [],
     ...overrides
   }
 }
@@ -91,7 +92,8 @@ describe('SyncSteamWishlist', () => {
       releaseDate: null,
       metacriticScore: null,
       recommendationsTotal: null,
-      screenshots: []
+      screenshots: [],
+      trailerUrl: null
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])
@@ -165,7 +167,8 @@ describe('SyncSteamWishlist', () => {
       releaseDate: null,
       metacriticScore: null,
       recommendationsTotal: null,
-      screenshots: []
+      screenshots: [],
+      trailerUrl: null
     }
     const steamWishlistRepository: SteamWishlistRepository = {
       fetchWishlistAppIds: vi.fn(async () => [{ appId: 999, addedAt: '2026-02-01T00:00:00.000Z' }])

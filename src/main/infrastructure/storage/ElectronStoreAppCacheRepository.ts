@@ -54,4 +54,8 @@ export class ElectronStoreAppCacheRepository implements AppCacheRepository {
     const current = this.metadataStore.read()
     this.metadataStore.write({ ...current, [String(metadata.appId)]: metadata })
   }
+
+  getAllMetadata(): GameMetadata[] {
+    return Object.values(this.metadataStore.read())
+  }
 }

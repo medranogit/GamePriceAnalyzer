@@ -20,6 +20,8 @@ export const IPC_CHANNELS = {
   notificationsTest: 'notifications:test',
   notifiedDealsClear: 'notifiedDeals:clear',
   metadataResolveMissing: 'metadata:resolveMissing',
+  metadataGetAll: 'metadata:getAll',
+  achievementsGet: 'achievements:get',
   secretsStatus: 'secrets:status',
   secretsSetSteamApiKey: 'secrets:setSteamApiKey',
   secretsSetGGDealsApiKey: 'secrets:setGGDealsApiKey',

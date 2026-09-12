@@ -1,55 +1,25 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Descriptions, Empty, Image, Tag, Typography } from 'antd'
-import { ArrowLeftOutlined, TeamOutlined, TrophyOutlined } from '@ant-design/icons'
+import { Button, Empty, Tag, Typography } from 'antd'
+import {
+  ArrowLeftOutlined,
+  ExportOutlined,
+  KeyOutlined,
+  ShopOutlined,
+  TrophyOutlined
+} from '@ant-design/icons'
 import styled from 'styled-components'
 import { useDeals, useWishlistDealsCache } from '@renderer/hooks/useDeals'
-import { GameCover } from '@renderer/components/GameCover/GameCover'
-import { formatCount, formatPrice } from '@renderer/lib/formatters'
+import { GameHero } from '@renderer/components/GameHero/GameHero'
+import { formatPrice } from '@renderer/lib/formatters'
 import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
-const Hero = styled.div`
-  position: relative;
-  margin-bottom: 16px;
-`
-
-const HeroScrim = styled.div`
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  background: linear-gradient(to top, rgba(15, 17, 21, 0.95), rgba(15, 17, 21, 0) 55%);
-`
-
-const HeroTitle = styled(Title)`
-  &&& {
-    position: absolute;
-    left: 20px;
-    bottom: 14px;
-    margin: 0;
-    color: #fff;
-  }
-`
-
-const MetaRow = styled.div`
+const TopBar = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-  color: ${({ theme }) => theme.colors.textMuted};
-`
-
-const GenresRow = styled.div`
   margin-bottom: 16px;
-`
-
-const ScreenshotsRow = styled.div`
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin-bottom: 20px;
-  padding-bottom: 4px;
 `
 
 const HighlightGrid = styled.div`
@@ -80,11 +50,53 @@ const HighlightValue = styled.div`
   font-weight: 600;
 `
 
-function metacriticColor(score: number): string {
-  if (score >= 75) return '#3fb950'
-  if (score >= 50) return '#d4a72c'
-  return '#f85149'
-}
+const StoreGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+`
+
+const StoreCard = styled.div<{ $accent: string }>`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-left: 3px solid ${({ $accent }) => $accent};
+  border-radius: 10px;
+  padding: 14px 16px;
+`
+
+const StoreIconBadge = styled.div<{ $accent: string }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  color: ${({ $accent }) => $accent};
+  background: ${({ $accent }) => $accent}26;
+`
+
+const StoreLabel = styled(Text)`
+  &&& {
+    display: block;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 12px;
+  }
+`
+
+const StoreValue = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+`
+
+const RETAIL_ACCENT = '#1fa89e'
+const KEYSHOP_ACCENT = '#9254de'
+const HISTORICAL_ACCENT = '#d4a72c'
 
 export function GameDetailPage() {
   const { appId } = useParams<{ appId: string }>()
@@ -111,71 +123,37 @@ export function GameDetailPage() {
     )
   }
 
+  const steamStoreUrl = deal.appId !== null ? `https://store.steampowered.com/app/${deal.appId}/` : null
+
   const bestCurrent = getBestCurrentPrice(deal)
   const historicalLow = getBestHistoricalLow(deal)
 
-  // `deal` pode ter sido cacheado em disco por uma versão anterior do app, sem estes campos.
-  const developers = deal.developers ?? []
-  const publishers = deal.publishers ?? []
-  const screenshots = deal.screenshots ?? []
-
-  const metaParts: string[] = []
-  if (developers.length > 0) metaParts.push(developers.join(', '))
-  if (publishers.length > 0 && publishers.join(',') !== developers.join(','))
-    metaParts.push(publishers.join(', '))
-  if (deal.releaseDate) metaParts.push(deal.releaseDate)
-
   return (
     <div>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
-        Voltar
-      </Button>
-
-      <Hero>
-        <GameCover url={deal.coverUrl} height={260} radius={10} />
-        <HeroScrim />
-        <HeroTitle level={2}>{deal.title}</HeroTitle>
-      </Hero>
-
-      <MetaRow>
-        {metaParts.length > 0 && <Text type="secondary">{metaParts.join(' · ')}</Text>}
-        {deal.metacriticScore !== null && (
-          <Tag color={metacriticColor(deal.metacriticScore)} style={{ margin: 0 }}>
-            Metacritic {deal.metacriticScore}
-          </Tag>
+      <TopBar>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+          Voltar
+        </Button>
+        {steamStoreUrl && (
+          <a href={steamStoreUrl} target="_blank" rel="noreferrer">
+            <Button icon={<ExportOutlined />}>Ver na Steam</Button>
+          </a>
         )}
-        {deal.recommendationsTotal !== null && (
-          <Text type="secondary">
-            <TeamOutlined /> {formatCount(deal.recommendationsTotal)} avaliações na Steam
-          </Text>
-        )}
-      </MetaRow>
+      </TopBar>
 
-      <GenresRow>
-        {deal.genres.map((genre) => (
-          <Tag key={genre}>{genre}</Tag>
-        ))}
-      </GenresRow>
-
-      {deal.shortDescription && (
-        <Text style={{ display: 'block', marginBottom: 16 }}>{deal.shortDescription}</Text>
-      )}
-
-      {screenshots.length > 0 && (
-        <Image.PreviewGroup>
-          <ScreenshotsRow>
-            {screenshots.map((url) => (
-              <Image
-                key={url}
-                src={url}
-                height={90}
-                style={{ borderRadius: 6 }}
-                rootClassName="screenshot-thumb"
-              />
-            ))}
-          </ScreenshotsRow>
-        </Image.PreviewGroup>
-      )}
+      <GameHero
+        title={deal.title}
+        coverUrl={deal.coverUrl}
+        genres={deal.genres}
+        developers={deal.developers ?? []}
+        publishers={deal.publishers ?? []}
+        releaseDate={deal.releaseDate}
+        metacriticScore={deal.metacriticScore}
+        recommendationsTotal={deal.recommendationsTotal}
+        shortDescription={deal.shortDescription}
+        trailerUrl={deal.trailerUrl}
+        screenshots={deal.screenshots ?? []}
+      />
 
       <HighlightGrid>
         <HighlightCard>
@@ -203,20 +181,47 @@ export function GameDetailPage() {
         </HighlightCard>
       </HighlightGrid>
 
-      <Descriptions bordered column={1} size="middle">
-        <Descriptions.Item label="Menor preço atual (lojas oficiais)">
-          {formatPrice(deal.currency, deal.currentRetailPrice)}
-        </Descriptions.Item>
-        <Descriptions.Item label="Menor preço atual (keyshops)">
-          {formatPrice(deal.currency, deal.currentKeyshopPrice)}
-        </Descriptions.Item>
-        <Descriptions.Item label="Menor histórico (lojas oficiais)">
-          {formatPrice(deal.currency, deal.historicalRetailLow)}
-        </Descriptions.Item>
-        <Descriptions.Item label="Menor histórico (keyshops)">
-          {formatPrice(deal.currency, deal.historicalKeyshopLow)}
-        </Descriptions.Item>
-      </Descriptions>
+      <StoreGrid>
+        <StoreCard $accent={RETAIL_ACCENT}>
+          <StoreIconBadge $accent={RETAIL_ACCENT}>
+            <ShopOutlined />
+          </StoreIconBadge>
+          <div>
+            <StoreLabel>Loja oficial · preço atual</StoreLabel>
+            <StoreValue>{formatPrice(deal.currency, deal.currentRetailPrice)}</StoreValue>
+          </div>
+        </StoreCard>
+
+        <StoreCard $accent={KEYSHOP_ACCENT}>
+          <StoreIconBadge $accent={KEYSHOP_ACCENT}>
+            <KeyOutlined />
+          </StoreIconBadge>
+          <div>
+            <StoreLabel>Keyshop · preço atual</StoreLabel>
+            <StoreValue>{formatPrice(deal.currency, deal.currentKeyshopPrice)}</StoreValue>
+          </div>
+        </StoreCard>
+
+        <StoreCard $accent={HISTORICAL_ACCENT}>
+          <StoreIconBadge $accent={HISTORICAL_ACCENT}>
+            <TrophyOutlined />
+          </StoreIconBadge>
+          <div>
+            <StoreLabel>Loja oficial · menor histórico</StoreLabel>
+            <StoreValue>{formatPrice(deal.currency, deal.historicalRetailLow)}</StoreValue>
+          </div>
+        </StoreCard>
+
+        <StoreCard $accent={HISTORICAL_ACCENT}>
+          <StoreIconBadge $accent={HISTORICAL_ACCENT}>
+            <TrophyOutlined />
+          </StoreIconBadge>
+          <div>
+            <StoreLabel>Keyshop · menor histórico</StoreLabel>
+            <StoreValue>{formatPrice(deal.currency, deal.historicalKeyshopLow)}</StoreValue>
+          </div>
+        </StoreCard>
+      </StoreGrid>
 
       {deal.ggDealsUrl && (
         <a

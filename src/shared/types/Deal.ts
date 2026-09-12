@@ -20,6 +20,7 @@ export interface GameDeal {
   metacriticScore: number | null
   recommendationsTotal: number | null
   screenshots: string[]
+  trailerUrl: string | null
   /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
   firstSeenAt: string
 }

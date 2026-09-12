@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  GameAchievements,
   GameDeal,
+  GameMetadata,
   HistoryEvent,
   OwnedGame,
   SessionLogEntry,
@@ -45,7 +47,12 @@ const api = {
   },
   metadata: {
     resolveMissing: (): Promise<{ resolved: number; failed: number; synced: number }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveMissing)
+      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveMissing),
+    getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
+  },
+  achievements: {
+    get: (appId: number): Promise<GameAchievements | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.achievementsGet, appId)
   },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest),

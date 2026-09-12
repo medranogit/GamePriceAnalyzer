@@ -17,4 +17,5 @@ export interface AppCacheRepository {
 
   getMetadata(appId: number): GameMetadata | null
   setMetadata(metadata: GameMetadata): void
+  getAllMetadata(): GameMetadata[]
 }

@@ -23,6 +23,7 @@ function makeDeal(overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
+    trailerUrl: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

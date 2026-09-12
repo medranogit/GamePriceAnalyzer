@@ -49,7 +49,8 @@ function makeMetadata(appId: number): GameMetadata {
     releaseDate: null,
     metacriticScore: null,
     recommendationsTotal: null,
-    screenshots: []
+    screenshots: [],
+    trailerUrl: null
   }
 }
 
@@ -74,6 +75,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
+    trailerUrl: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -94,6 +96,7 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     setMetadata: vi.fn((metadata) => {
       metadataStore.set(metadata.appId, metadata)
     }),
+    getAllMetadata: () => [...metadataStore.values()],
     ...overrides
   }
 }
@@ -103,11 +106,10 @@ describe('ResolveMissingMetadata', () => {
     vi.useRealTimers()
   })
 
-  it('só busca metadata de quem ainda não está em cache, ignorando jogos já possuídos', async () => {
+  it('só busca metadata de quem ainda não está em cache', async () => {
     vi.useFakeTimers()
     const cacheRepository = makeCacheRepository({
-      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2), makeWishlistItem(3)],
-      getOwnedGames: () => [makeOwnedGame(3)],
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2)],
       getMetadata: (appId) => (appId === 1 ? makeMetadata(1) : null)
     })
     const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
@@ -126,6 +128,31 @@ describe('ResolveMissingMetadata', () => {
     expect(fetchMetadata).toHaveBeenCalledWith(2)
     expect(cacheRepository.setMetadata).toHaveBeenCalledWith(makeMetadata(2))
     expect(result).toEqual({ resolved: 1, failed: 0, synced: 0 })
+  })
+
+  it('também busca metadata de jogos possuídos (biblioteca), não só da wishlist, sem duplicar quem está nas duas listas', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(3)],
+      getOwnedGames: () => [makeOwnedGame(2), makeOwnedGame(3)],
+      getMetadata: (appId) => (appId === 1 ? makeMetadata(1) : null)
+    })
+    const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository()
+    )
+
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(3)
+    expect(result.resolved).toBe(2)
   })
 
   it.each(['shortDescription', 'headerImageUrl', 'steamFullPrice'] as const)(

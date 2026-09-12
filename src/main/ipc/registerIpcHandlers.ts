@@ -19,6 +19,7 @@ import type { PollingStateRepository } from '../domain/repositories/PollingState
 import type { LastRunScheduler } from '../infrastructure/scheduler/LastRunScheduler'
 import type { NotifiedDealsRepository } from '../domain/repositories/NotifiedDealsRepository'
 import type { ResolveMissingMetadata } from '../domain/use-cases/ResolveMissingMetadata'
+import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchievements'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
@@ -27,6 +28,7 @@ interface Dependencies {
   notificationService: NotificationService
   notifiedDealsRepository: NotifiedDealsRepository
   resolveMissingMetadata: ResolveMissingMetadata
+  fetchGameAchievements: FetchGameAchievements
   syncSteamLibrary: SyncSteamLibrary
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
@@ -168,6 +170,16 @@ export function registerIpcHandlers(deps: Dependencies): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, () => deps.resolveMissingMetadata.execute())
+
+  ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
+
+  ipcMain.handle(IPC_CHANNELS.achievementsGet, (_event, appId: number) => {
+    const settings = deps.settingsRepository.get()
+    if (!settings.steamId64) {
+      throw new Error('SteamID64 não configurado. Cadastre em Configurações.')
+    }
+    return deps.fetchGameAchievements.execute(settings.steamId64, appId)
+  })
 }
 
 function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
@@ -191,6 +203,7 @@ function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
+    trailerUrl: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

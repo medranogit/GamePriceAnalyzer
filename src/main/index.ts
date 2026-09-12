@@ -13,6 +13,7 @@ import { SteamLibraryRepositoryImpl } from './infrastructure/steam/SteamLibraryR
 import { SteamStoreMetadataRepositoryImpl } from './infrastructure/steam/SteamStoreMetadataRepositoryImpl'
 import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
 import { SteamWishlistRepositoryImpl } from './infrastructure/steam/SteamWishlistRepositoryImpl'
+import { SteamAchievementsRepositoryImpl } from './infrastructure/steam/SteamAchievementsRepositoryImpl'
 import { GGDealsApiClient } from './infrastructure/ggdeals/GGDealsApiClient'
 import { DealsRepositoryImpl } from './infrastructure/ggdeals/DealsRepositoryImpl'
 import { ElectronNotificationService } from './infrastructure/notifications/ElectronNotificationService'
@@ -31,6 +32,7 @@ import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
+import { FetchGameAchievements } from './domain/use-cases/FetchGameAchievements'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 
@@ -126,6 +128,7 @@ async function bootstrap(): Promise<void> {
 
   const steamClient = new SteamWebApiClient(() => secretsStore.get('steamApiKey'))
   const steamLibraryRepository = new SteamLibraryRepositoryImpl(steamClient)
+  const steamAchievementsRepository = new SteamAchievementsRepositoryImpl(steamClient)
   const metadataRepository = new SteamStoreMetadataRepositoryImpl()
   const steamSearchRepository = new SteamSearchRepositoryImpl()
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
@@ -168,6 +171,7 @@ async function bootstrap(): Promise<void> {
     metadataRepository,
     sessionLogRepository
   )
+  const fetchGameAchievements = new FetchGameAchievements(steamAchievementsRepository)
 
   mainWindow = createMainWindow()
 
@@ -240,6 +244,7 @@ async function bootstrap(): Promise<void> {
     notificationService,
     notifiedDealsRepository,
     resolveMissingMetadata,
+    fetchGameAchievements,
     sessionLogRepository,
     pollingStateRepository,
     wishlistSyncScheduler

@@ -19,7 +19,8 @@ const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'releaseDate',
   'metacriticScore',
   'recommendationsTotal',
-  'screenshots'
+  'screenshots',
+  'trailerUrl'
 ]
 
 function sleep(ms: number): Promise<void> {
@@ -50,6 +51,7 @@ function applyMetadataToDeal(deal: GameDeal, metadata: GameMetadata): GameDeal {
   const nextMetacriticScore = deal.metacriticScore ?? metadata.metacriticScore ?? null
   const nextRecommendationsTotal = deal.recommendationsTotal ?? metadata.recommendationsTotal ?? null
   const nextScreenshots = dealScreenshots.length > 0 ? dealScreenshots : metadataScreenshots
+  const nextTrailerUrl = deal.trailerUrl ?? metadata.trailerUrl ?? null
   const isUpToDate =
     nextCoverUrl === deal.coverUrl &&
     nextGenres === deal.genres &&
@@ -60,6 +62,7 @@ function applyMetadataToDeal(deal: GameDeal, metadata: GameMetadata): GameDeal {
     nextMetacriticScore === deal.metacriticScore &&
     nextRecommendationsTotal === deal.recommendationsTotal &&
     nextScreenshots === deal.screenshots &&
+    nextTrailerUrl === deal.trailerUrl &&
     deal.steamPrice === metadata.steamPrice &&
     deal.steamDiscountPercent === metadata.steamDiscountPercent &&
     deal.steamFullPrice === metadata.steamFullPrice
@@ -76,6 +79,7 @@ function applyMetadataToDeal(deal: GameDeal, metadata: GameMetadata): GameDeal {
     metacriticScore: nextMetacriticScore,
     recommendationsTotal: nextRecommendationsTotal,
     screenshots: nextScreenshots,
+    trailerUrl: nextTrailerUrl,
     steamPrice: metadata.steamPrice,
     steamDiscountPercent: metadata.steamDiscountPercent,
     steamFullPrice: metadata.steamFullPrice
@@ -89,10 +93,11 @@ export interface ResolveMissingMetadataResult {
 }
 
 /**
- * Ação manual e independente da busca de ofertas: só resolve capa/gênero/
- * sinopse da Steam pra quem ainda não tem isso em cache (dispara sozinho a
- * cada busca também, mas essa é a forma de rodar isso na hora, sem esperar o
- * ciclo automático nem gastar tempo com o GG.deals).
+ * Ação manual e independente da busca de ofertas: resolve capa/gênero/sinopse/
+ * trailer da Steam pra quem ainda não tem isso em cache — tanto wishlist
+ * quanto biblioteca (jogos possuídos), sem duplicar quem está nas duas listas
+ * (dispara sozinho a cada busca também, mas essa é a forma de rodar isso na
+ * hora, sem esperar o ciclo automático nem gastar tempo com o GG.deals).
  *
  * Sincroniza o cache de ofertas (Dashboard e Wishlist) a cada jogo resolvido
  * — não só no final — pra quem estiver de olho na tela ver o progresso
@@ -117,9 +122,14 @@ export class ResolveMissingMetadata {
   }
 
   private async run(): Promise<ResolveMissingMetadataResult> {
-    const ownedAppIds = new Set(this.cacheRepository.getOwnedGames().map((g) => g.appId))
-    const wishlist = this.cacheRepository.getWishlist().filter((item) => !ownedAppIds.has(item.appId))
-    const missing = wishlist.filter((item) => this.isMetadataIncomplete(item.appId))
+    const targetsByAppId = new Map<number, { appId: number; title: string }>()
+    for (const item of this.cacheRepository.getWishlist()) {
+      targetsByAppId.set(item.appId, { appId: item.appId, title: item.title })
+    }
+    for (const game of this.cacheRepository.getOwnedGames()) {
+      targetsByAppId.set(game.appId, { appId: game.appId, title: game.name })
+    }
+    const missing = [...targetsByAppId.values()].filter((item) => this.isMetadataIncomplete(item.appId))
 
     this.sessionLogRepository.log(
       'info',

@@ -8,6 +8,7 @@ import { DashboardPage } from '@renderer/pages/Dashboard/DashboardPage'
 import { LibraryPage } from '@renderer/pages/Library/LibraryPage'
 import { WishlistPage } from '@renderer/pages/Wishlist/WishlistPage'
 import { GameDetailPage } from '@renderer/pages/GameDetail/GameDetailPage'
+import { LibraryGameDetailPage } from '@renderer/pages/LibraryGameDetail/LibraryGameDetailPage'
 import { HistoryPage } from '@renderer/pages/History/HistoryPage'
 import { LogSessaoPage } from '@renderer/pages/LogSessao/LogSessaoPage'
 import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
@@ -97,6 +98,7 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="library" element={<LibraryPage />} />
+          <Route path="library/:appId" element={<LibraryGameDetailPage />} />
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="game/:appId" element={<GameDetailPage />} />
           <Route path="history" element={<HistoryPage />} />

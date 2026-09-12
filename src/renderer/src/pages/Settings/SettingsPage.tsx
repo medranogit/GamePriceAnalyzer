@@ -209,7 +209,7 @@ export function SettingsPage() {
 
           <Form.Item
             label="Buscar metadados da Steam agora"
-            extra="Resolve capa e gênero (via Steam) só de quem ainda não tem isso em cache — sem mexer em preço/GG.deals. Útil pra preencher capas faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
+            extra="Resolve capa, gênero, sinopse, trailer etc. (via Steam) de quem ainda não tem isso em cache — tanto na wishlist quanto na sua biblioteca. Útil pra preencher informações faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
           >
             <Button
               icon={<PictureOutlined />}
@@ -220,6 +220,7 @@ export function SettingsPage() {
                   const result = await window.api.metadata.resolveMissing()
                   void queryClient.invalidateQueries({ queryKey: ['deals'] })
                   void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+                  void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
                   message.success(
                     `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
                   )

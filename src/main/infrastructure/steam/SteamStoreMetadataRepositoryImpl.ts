@@ -22,6 +22,11 @@ interface AppDetailsResponse {
       metacritic?: { score: number; url: string }
       recommendations?: { total: number }
       screenshots?: Array<{ id: number; path_thumbnail: string; path_full: string }>
+      movies?: Array<{
+        id: number
+        highlight: boolean
+        mp4: { '480': string; max?: string }
+      }>
     }
   }
 }
@@ -50,6 +55,9 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
       const entry = data[String(appId)]
       if (!entry?.success || !entry.data) return null
 
+      const movie = entry.data.movies?.find((m) => m.highlight) ?? entry.data.movies?.[0]
+      const trailerUrl = movie ? (movie.mp4.max ?? movie.mp4['480']) : null
+
       return {
         appId,
         title: entry.data.name ?? null,
@@ -64,7 +72,8 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
         releaseDate: entry.data.release_date?.coming_soon ? null : (entry.data.release_date?.date ?? null),
         metacriticScore: entry.data.metacritic?.score ?? null,
         recommendationsTotal: entry.data.recommendations?.total ?? null,
-        screenshots: entry.data.screenshots?.slice(0, 5).map((s) => s.path_full) ?? []
+        screenshots: entry.data.screenshots?.slice(0, 5).map((s) => s.path_full) ?? [],
+        trailerUrl
       }
     } catch (error) {
       logger.warn(`Falha ao buscar metadata do appId ${appId}`, error)

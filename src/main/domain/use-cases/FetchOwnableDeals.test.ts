@@ -55,6 +55,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
+    trailerUrl: null,
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -72,6 +73,7 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     setWishlistDeals: vi.fn(),
     getMetadata: () => null,
     setMetadata: vi.fn(),
+    getAllMetadata: () => [],
     ...overrides
   }
 }
@@ -139,7 +141,8 @@ describe('FetchOwnableDeals', () => {
       releaseDate: null,
       metacriticScore: null,
       recommendationsTotal: null,
-      screenshots: []
+      screenshots: [],
+      trailerUrl: null
     }
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
@@ -213,7 +216,8 @@ describe('FetchOwnableDeals', () => {
       releaseDate: null,
       metacriticScore: null,
       recommendationsTotal: null,
-      screenshots: []
+      screenshots: [],
+      trailerUrl: null
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [

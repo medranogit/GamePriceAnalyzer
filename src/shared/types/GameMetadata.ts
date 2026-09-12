@@ -14,4 +14,5 @@ export interface GameMetadata {
   metacriticScore: number | null
   recommendationsTotal: number | null
   screenshots: string[]
+  trailerUrl: string | null
 }

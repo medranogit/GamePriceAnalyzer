@@ -5,7 +5,8 @@ const LIBRARY_KEY = ['library']
 export function useLibrary() {
   return useQuery({
     queryKey: LIBRARY_KEY,
-    queryFn: () => window.api.library.getCached()
+    queryFn: () => window.api.library.getCached(),
+    refetchInterval: 60_000
   })
 }
 
