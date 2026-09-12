@@ -30,6 +30,8 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     getMetadata: () => null,
     setMetadata: vi.fn(),
     getAllMetadata: () => [],
+    getPendingDealsAppIds: () => [],
+    setPendingDealsAppIds: vi.fn(),
     ...overrides
   }
 }

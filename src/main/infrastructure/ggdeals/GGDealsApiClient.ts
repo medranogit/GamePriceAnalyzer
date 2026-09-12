@@ -74,7 +74,10 @@ export class GGDealsApiClient {
     private readonly sessionLogRepository: SessionLogRepository
   ) {}
 
-  async getPricesBySteamAppIds(appIds: number[]): Promise<GameDeal[]> {
+  async getPricesBySteamAppIds(
+    appIds: number[],
+    onBatch?: (deals: GameDeal[]) => Promise<void> | void
+  ): Promise<GameDeal[]> {
     const apiKey = this.apiKeyProvider()
     if (!apiKey) {
       throw new Error('GG_DEALS_API_KEY não configurada. Cadastre a chave em Configurações.')
@@ -100,6 +103,7 @@ export class GGDealsApiClient {
         'success',
         `Lote ${i + 1}/${batches.length} concluído: ${result.deals.length} preço(s) recebido(s).`
       )
+      await onBatch?.(result.deals)
 
       const nextBatch = batches[i + 1]
       if (!nextBatch) continue

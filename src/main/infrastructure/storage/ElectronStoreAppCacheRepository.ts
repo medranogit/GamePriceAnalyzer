@@ -13,6 +13,7 @@ export class ElectronStoreAppCacheRepository implements AppCacheRepository {
   private readonly dealsStore = new JsonFileStore<GameDeal[]>('deals-cache.json', [])
   private readonly wishlistDealsStore = new JsonFileStore<GameDeal[]>('wishlist-deals-cache.json', [])
   private readonly metadataStore = new JsonFileStore<Record<string, GameMetadata>>('metadata-cache.json', {})
+  private readonly pendingDealsAppIdsStore = new JsonFileStore<number[]>('deals-fetch-progress.json', [])
 
   getOwnedGames(): OwnedGame[] {
     return this.ownedGamesStore.read()
@@ -57,5 +58,13 @@ export class ElectronStoreAppCacheRepository implements AppCacheRepository {
 
   getAllMetadata(): GameMetadata[] {
     return Object.values(this.metadataStore.read())
+  }
+
+  getPendingDealsAppIds(): number[] {
+    return this.pendingDealsAppIdsStore.read()
+  }
+
+  setPendingDealsAppIds(appIds: number[]): void {
+    this.pendingDealsAppIdsStore.write(appIds)
   }
 }

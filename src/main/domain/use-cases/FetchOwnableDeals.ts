@@ -16,6 +16,13 @@ import type { SessionLogRepository } from '../repositories/SessionLogRepository'
  * decide o que aparecer na tela é o renderer, na hora, sem precisar buscar
  * de novo. A única filtragem que continua no domínio é "vale notificar",
  * que é uma decisão de negócio (CheckDealAlerts), não de exibição.
+ *
+ * Cada lote do GG.deals é salvo (preço + metadata) assim que chega, e o AppID
+ * sai da lista de "pendentes" (`deals-fetch-progress.json`) na hora — se o app
+ * fechar no meio de uma busca grande (ex: lote 6/12), a próxima chamada a
+ * `execute()` retoma só o que ainda falta, em vez de recomeçar do lote 1.
+ * Isso é por-ciclo: assim que um ciclo termina (pendentes zera), a próxima
+ * chamada começa um ciclo novo do zero (preço precisa ser sempre reconferido).
  */
 export class FetchOwnableDeals {
   constructor(
@@ -28,24 +35,62 @@ export class FetchOwnableDeals {
 
   async execute(): Promise<GameDeal[]> {
     const ownedAppIds = new Set(this.cacheRepository.getOwnedGames().map((g) => g.appId))
-
     const allCandidateAppIds = this.cacheRepository.getWishlist().map((w) => w.appId)
-
-    // Descarta o que já é possuído antes de gastar cota da API do GG.deals com isso.
     const candidateAppIds = allCandidateAppIds.filter((appId) => !ownedAppIds.has(appId))
     const ownedSkippedCount = allCandidateAppIds.length - candidateAppIds.length
+    const candidateSet = new Set(candidateAppIds)
 
     this.sessionLogRepository.log(
       'info',
       `Candidatos: ${candidateAppIds.length} jogo(s) da wishlist (${ownedSkippedCount} já possuído(s) descartado(s)).`
     )
 
-    if (candidateAppIds.length === 0) return []
+    // Remove do cache quem não é mais candidato (saiu da wishlist ou foi adquirido).
+    const currentDeals = this.cacheRepository.getDeals()
+    const cleanedDeals = currentDeals.filter((deal) => deal.appId !== null && candidateSet.has(deal.appId))
+    if (cleanedDeals.length !== currentDeals.length) {
+      this.cacheRepository.setDeals(cleanedDeals)
+    }
 
-    const rawDeals = await this.dealsRepository.fetchDealsBySteamAppIds(candidateAppIds)
-    const deals = preserveFirstSeenAt(rawDeals, this.cacheRepository.getDeals())
+    if (candidateAppIds.length === 0) {
+      this.cacheRepository.setPendingDealsAppIds([])
+      return []
+    }
 
-    for (const deal of deals) {
+    const filteredPending = this.cacheRepository
+      .getPendingDealsAppIds()
+      .filter((appId) => candidateSet.has(appId))
+    const isResuming = filteredPending.length > 0
+    const toFetch = isResuming ? filteredPending : candidateAppIds
+    this.cacheRepository.setPendingDealsAppIds(toFetch)
+
+    if (isResuming) {
+      this.sessionLogRepository.log(
+        'warn',
+        `Retomando busca de ofertas interrompida: ${toFetch.length}/${candidateAppIds.length} jogo(s) ainda faltam.`
+      )
+    }
+
+    const pending = new Set(toFetch)
+    await this.dealsRepository.fetchDealsBySteamAppIds(toFetch, async (batchDeals) => {
+      await this.processBatch(batchDeals)
+      for (const deal of batchDeals) {
+        if (deal.appId !== null) pending.delete(deal.appId)
+      }
+      this.cacheRepository.setPendingDealsAppIds([...pending])
+    })
+
+    const finalDeals = this.cacheRepository.getDeals()
+    this.sessionLogRepository.log('success', `Concluído: ${finalDeals.length} oferta(s) atualizada(s).`)
+    return finalDeals
+  }
+
+  /** Salva preço/histórico/metadata de um lote assim que ele chega, e mescla no cache sem apagar o resto. */
+  private async processBatch(batchDeals: GameDeal[]): Promise<void> {
+    const previousDeals = this.cacheRepository.getDeals()
+    const withFirstSeen = preserveFirstSeenAt(batchDeals, previousDeals)
+
+    for (const deal of withFirstSeen) {
       if (deal.appId === null) continue
       this.priceHistoryRepository.recordObservation(
         deal.appId,
@@ -55,11 +100,15 @@ export class FetchOwnableDeals {
       )
     }
 
-    const enriched = await this.enrichWithMetadata(deals)
+    const enriched = await this.enrichWithMetadata(withFirstSeen)
 
-    this.cacheRepository.setDeals(enriched)
-    this.sessionLogRepository.log('success', `Concluído: ${enriched.length} oferta(s) atualizada(s).`)
-    return enriched
+    const dealsByAppId = new Map(
+      previousDeals.filter((deal) => deal.appId !== null).map((deal) => [deal.appId, deal])
+    )
+    for (const deal of enriched) {
+      if (deal.appId !== null) dealsByAppId.set(deal.appId, deal)
+    }
+    this.cacheRepository.setDeals([...dealsByAppId.values()])
   }
 
   private async enrichWithMetadata(deals: GameDeal[]): Promise<GameDeal[]> {
