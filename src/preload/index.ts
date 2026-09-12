@@ -42,12 +42,15 @@ const api = {
   },
   polling: {
     triggerNow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.pollingTriggerNow),
-    getStatus: (): Promise<{ lastRunAt: string | null; intervalMinutes: number }> =>
+    getStatus: (): Promise<{ lastRunAt: string | null; intervalMinutes: number; running: boolean }> =>
       ipcRenderer.invoke(IPC_CHANNELS.pollingGetStatus)
   },
   metadata: {
     resolveMissing: (): Promise<{ resolved: number; failed: number; synced: number }> =>
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveMissing),
+    cancelResolve: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.metadataResolveCancel),
+    getResolveStatus: (): Promise<{ resolving: boolean }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveStatus),
     getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
   },
   achievements: {

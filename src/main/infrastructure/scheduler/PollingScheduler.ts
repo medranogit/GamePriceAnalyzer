@@ -33,6 +33,10 @@ export class PollingScheduler {
     return this.scheduler.runNow()
   }
 
+  isRunning(): boolean {
+    return this.scheduler.isRunning()
+  }
+
   logStatus(): void {
     this.scheduler.logStatus()
   }

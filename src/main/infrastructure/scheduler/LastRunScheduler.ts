@@ -46,6 +46,10 @@ export class LastRunScheduler {
     this.scheduleNext()
   }
 
+  isRunning(): boolean {
+    return this.inFlight !== null
+  }
+
   /** Registra que a tarefa rodou por fora (ex: botão manual numa tela) e reagenda a partir daí. */
   notifyExternalRun(): void {
     this.lastRunRepository.setLastRunAt(new Date().toISOString())

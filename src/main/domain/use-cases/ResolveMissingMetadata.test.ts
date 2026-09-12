@@ -294,6 +294,52 @@ describe('ResolveMissingMetadata', () => {
     ])
   })
 
+  it('cancel() para a resolução assim que possível, sem processar o restante da fila', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2), makeWishlistItem(3)]
+    })
+    let useCase!: ResolveMissingMetadata
+    const fetchMetadata = vi.fn(async (appId: number) => {
+      if (appId === 1) useCase.cancel()
+      return makeMetadata(appId)
+    })
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    useCase = new ResolveMissingMetadata(cacheRepository, metadataRepository, makeSessionLogRepository())
+
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+    expect(fetchMetadata).toHaveBeenCalledWith(1)
+    expect(result).toEqual({ resolved: 1, failed: 0, synced: 0 })
+  })
+
+  it('isResolving() reflete o estado real mesmo sem ninguém segurando a Promise de execute() (ex: trocou de aba e voltou)', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1)]
+    })
+    const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository()
+    )
+
+    expect(useCase.isResolving()).toBe(false)
+
+    const resultPromise = useCase.execute()
+    expect(useCase.isResolving()).toBe(true)
+
+    await vi.runAllTimersAsync()
+    await resultPromise
+
+    expect(useCase.isResolving()).toBe(false)
+  })
+
   it('não deixa uma segunda chamada rodar em paralelo com uma já em andamento', async () => {
     vi.useFakeTimers()
     const cacheRepository = makeCacheRepository({

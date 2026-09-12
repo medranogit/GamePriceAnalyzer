@@ -25,7 +25,8 @@ interface AppDetailsResponse {
       movies?: Array<{
         id: number
         highlight: boolean
-        mp4: { '480': string; max?: string }
+        // Alguns vídeos da Steam só têm `webm`, sem `mp4` — por isso opcional, não vale assumir presença.
+        mp4?: { '480': string; max?: string }
       }>
     }
   }
@@ -56,7 +57,7 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
       if (!entry?.success || !entry.data) return null
 
       const movie = entry.data.movies?.find((m) => m.highlight) ?? entry.data.movies?.[0]
-      const trailerUrl = movie ? (movie.mp4.max ?? movie.mp4['480']) : null
+      const trailerUrl = movie?.mp4 ? (movie.mp4.max ?? movie.mp4['480']) : null
 
       return {
         appId,

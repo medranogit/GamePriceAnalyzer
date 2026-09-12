@@ -75,4 +75,23 @@ describe('LastRunScheduler', () => {
     await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
     expect(onTick).toHaveBeenCalledTimes(1)
   })
+
+  it('isRunning() reflete a execução automática do agendamento, não só chamadas manuais (runNow)', async () => {
+    let resolveTick!: () => void
+    const onTick = vi.fn(() => new Promise<void>((resolve) => (resolveTick = resolve)))
+    const repository = makeFakePollingStateRepository(null)
+    const scheduler = new LastRunScheduler('Teste', onTick, repository, makeFakeSessionLogRepository(), 60)
+
+    expect(scheduler.isRunning()).toBe(false)
+
+    scheduler.start()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(scheduler.isRunning()).toBe(true)
+
+    resolveTick()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(scheduler.isRunning()).toBe(false)
+  })
 })

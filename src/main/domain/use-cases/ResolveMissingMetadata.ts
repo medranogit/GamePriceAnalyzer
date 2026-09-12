@@ -3,8 +3,6 @@ import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
-const STEAM_RATE_LIMIT_DELAY_MS = 1500
-
 /** Todo campo de GameMetadata exceto o id — usado só pra detectar cache incompleto (ver isMetadataIncomplete). */
 const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'title',
@@ -22,10 +20,6 @@ const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'screenshots',
   'trailerUrl'
 ]
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
 
 /**
  * Aplica a metadata da Steam em cima de uma oferta cacheada, sem sobrescrever o que já tinha valor.
@@ -106,6 +100,7 @@ export interface ResolveMissingMetadataResult {
  */
 export class ResolveMissingMetadata {
   private inFlight: Promise<ResolveMissingMetadataResult> | null = null
+  private cancelled = false
 
   constructor(
     private readonly cacheRepository: AppCacheRepository,
@@ -115,10 +110,20 @@ export class ResolveMissingMetadata {
 
   execute(): Promise<ResolveMissingMetadataResult> {
     if (this.inFlight) return this.inFlight
+    this.cancelled = false
     this.inFlight = this.run().finally(() => {
       this.inFlight = null
     })
     return this.inFlight
+  }
+
+  /** Para a resolução em andamento assim que possível — termina o jogo atual, mas não começa o próximo. */
+  cancel(): void {
+    this.cancelled = true
+  }
+
+  isResolving(): boolean {
+    return this.inFlight !== null
   }
 
   private async run(): Promise<ResolveMissingMetadataResult> {
@@ -140,9 +145,13 @@ export class ResolveMissingMetadata {
     let failed = 0
     let synced = 0
 
+    let processed = 0
     for (const item of missing) {
+      if (this.cancelled) break
+
       this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${item.title}"...`)
       const metadata = await this.metadataRepository.fetchMetadata(item.appId)
+      processed += 1
       if (metadata) {
         this.cacheRepository.setMetadata(metadata)
         resolved += 1
@@ -152,13 +161,20 @@ export class ResolveMissingMetadata {
         failed += 1
         this.sessionLogRepository.log('warn', `Não consegui metadata da Steam pra "${item.title}".`)
       }
-      await sleep(STEAM_RATE_LIMIT_DELAY_MS)
     }
 
     // Rede de segurança: cobre metadata que já estava completa em cache antes
     // desta execução (então nunca passou pelo loop acima) mas nunca tinha
     // sido aplicada nas ofertas cacheadas.
     synced += this.syncAllCachedDeals()
+
+    if (this.cancelled) {
+      this.sessionLogRepository.log(
+        'warn',
+        `Resolução de metadata cancelada: ${processed}/${missing.length} jogo(s) processado(s) (${resolved} resolvido(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
+      )
+      return { resolved, failed, synced }
+    }
 
     this.sessionLogRepository.log(
       'success',

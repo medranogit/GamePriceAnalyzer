@@ -11,6 +11,7 @@ import { ElectronStoreNotifiedDealsRepository } from './infrastructure/storage/E
 import { SteamWebApiClient } from './infrastructure/steam/SteamWebApiClient'
 import { SteamLibraryRepositoryImpl } from './infrastructure/steam/SteamLibraryRepositoryImpl'
 import { SteamStoreMetadataRepositoryImpl } from './infrastructure/steam/SteamStoreMetadataRepositoryImpl'
+import { ThrottledGameMetadataRepository } from './infrastructure/steam/ThrottledGameMetadataRepository'
 import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
 import { SteamWishlistRepositoryImpl } from './infrastructure/steam/SteamWishlistRepositoryImpl'
 import { SteamAchievementsRepositoryImpl } from './infrastructure/steam/SteamAchievementsRepositoryImpl'
@@ -129,7 +130,7 @@ async function bootstrap(): Promise<void> {
   const steamClient = new SteamWebApiClient(() => secretsStore.get('steamApiKey'))
   const steamLibraryRepository = new SteamLibraryRepositoryImpl(steamClient)
   const steamAchievementsRepository = new SteamAchievementsRepositoryImpl(steamClient)
-  const metadataRepository = new SteamStoreMetadataRepositoryImpl()
+  const metadataRepository = new ThrottledGameMetadataRepository(new SteamStoreMetadataRepositoryImpl())
   const steamSearchRepository = new SteamSearchRepositoryImpl()
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()

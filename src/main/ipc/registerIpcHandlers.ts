@@ -132,7 +132,8 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.pollingGetStatus, () => ({
     lastRunAt: deps.pollingStateRepository.getLastRunAt(),
-    intervalMinutes: deps.settingsRepository.get().polling.intervalMinutes
+    intervalMinutes: deps.settingsRepository.get().polling.intervalMinutes,
+    running: deps.scheduler.isRunning()
   }))
 
   ipcMain.handle(IPC_CHANNELS.notificationsTest, async () => {
@@ -182,6 +183,14 @@ export function registerIpcHandlers(deps: Dependencies): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, () => deps.resolveMissingMetadata.execute())
+
+  ipcMain.handle(IPC_CHANNELS.metadataResolveCancel, () => {
+    deps.resolveMissingMetadata.cancel()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.metadataResolveStatus, () => ({
+    resolving: deps.resolveMissingMetadata.isResolving()
+  }))
 
   ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
 

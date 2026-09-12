@@ -5,12 +5,6 @@ import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 
-const STEAM_RATE_LIMIT_DELAY_MS = 1500
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 /**
  * Sincroniza a wishlist direto da Steam (sem precisar de chave, só do
  * SteamID64) — substitui a importação manual de JSON. Só resolve o título
@@ -56,11 +50,6 @@ export class SyncSteamWishlist {
         }
         if (!cachedMetadata) {
           newlyResolvedCount += 1
-          this.sessionLogRepository.log(
-            'info',
-            `Aguardando ${STEAM_RATE_LIMIT_DELAY_MS / 1000}s pra respeitar o rate limit da Steam...`
-          )
-          await sleep(STEAM_RATE_LIMIT_DELAY_MS)
         }
 
         nextWishlist.push({

@@ -168,8 +168,7 @@ describe('FetchOwnableDeals', () => {
     expect(cacheRepository.setDeals).toHaveBeenCalledWith(result)
   })
 
-  it('respeita uma pausa entre chamadas de metadata pra AppIDs novos, pra não estourar o rate limit da Steam', async () => {
-    vi.useFakeTimers()
+  it('busca metadata pra cada AppID novo sem cache, sem se preocupar com o ritmo (isso é responsabilidade do GameMetadataRepository injetado)', async () => {
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds: DealsRepository['fetchDealsBySteamAppIds'] = vi.fn(async () => [
       makeDeal(1),
@@ -186,19 +185,11 @@ describe('FetchOwnableDeals', () => {
       makeSessionLogRepository()
     )
 
-    const resultPromise = useCase.execute()
-    await vi.advanceTimersByTimeAsync(0)
-    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+    await useCase.execute()
 
-    await vi.advanceTimersByTimeAsync(1499)
-    expect(fetchMetadata).toHaveBeenCalledTimes(1)
-
-    await vi.advanceTimersByTimeAsync(1)
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
-
-    // o segundo AppID (o último do lote) também tem sua própria pausa antes de terminar
-    await vi.runAllTimersAsync()
-    await resultPromise
+    expect(fetchMetadata).toHaveBeenCalledWith(1)
+    expect(fetchMetadata).toHaveBeenCalledWith(2)
   })
 
   it('reaproveita metadata já cacheada sem chamar o repositório de novo', async () => {

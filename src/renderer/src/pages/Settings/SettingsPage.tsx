@@ -26,6 +26,8 @@ import dayjs from 'dayjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
+import { METADATA_RESOLVE_STATUS_KEY, useMetadataResolveStatus } from '@renderer/hooks/useMetadata'
+import { POLLING_STATUS_KEY, usePollingStatus } from '@renderer/hooks/usePollingStatus'
 import { dismissAllInAppNotifications } from '@renderer/lib/notificationApi'
 
 const { Title, Text } = Typography
@@ -40,8 +42,10 @@ export function SettingsPage() {
   const [testingNotifications, setTestingNotifications] = useState(false)
   const [clearingNotifications, setClearingNotifications] = useState(false)
   const [dismissingNotifications, setDismissingNotifications] = useState(false)
-  const [checkingDealsNow, setCheckingDealsNow] = useState(false)
-  const [resolvingMetadata, setResolvingMetadata] = useState(false)
+  const { data: pollingStatus } = usePollingStatus()
+  const checkingDealsNow = pollingStatus?.running ?? false
+  const { data: resolveStatus } = useMetadataResolveStatus()
+  const resolvingMetadata = resolveStatus?.resolving ?? false
 
   const [steamId64Input, setSteamId64Input] = useState('')
   const [steamApiKeyInput, setSteamApiKeyInput] = useState('')
@@ -196,7 +200,10 @@ export function SettingsPage() {
               icon={<SyncOutlined />}
               loading={checkingDealsNow}
               onClick={async () => {
-                setCheckingDealsNow(true)
+                queryClient.setQueryData(POLLING_STATUS_KEY, (current: typeof pollingStatus) => ({
+                  ...current,
+                  running: true
+                }))
                 try {
                   await window.api.polling.triggerNow()
                   void queryClient.invalidateQueries({ queryKey: ['deals'] })
@@ -205,7 +212,7 @@ export function SettingsPage() {
                 } catch (error) {
                   showError(error)
                 } finally {
-                  setCheckingDealsNow(false)
+                  void queryClient.invalidateQueries({ queryKey: POLLING_STATUS_KEY })
                 }
               }}
             >
@@ -217,28 +224,44 @@ export function SettingsPage() {
             label="Buscar metadados da Steam agora"
             extra="Resolve capa, gênero, sinopse, trailer etc. (via Steam) de quem ainda não tem isso em cache — tanto na wishlist quanto na sua biblioteca. Útil pra preencher informações faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
           >
-            <Button
-              icon={<PictureOutlined />}
-              loading={resolvingMetadata}
-              onClick={async () => {
-                setResolvingMetadata(true)
-                try {
-                  const result = await window.api.metadata.resolveMissing()
-                  void queryClient.invalidateQueries({ queryKey: ['deals'] })
-                  void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
-                  void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
-                  message.success(
-                    `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
-                  )
-                } catch (error) {
-                  showError(error)
-                } finally {
-                  setResolvingMetadata(false)
-                }
-              }}
-            >
-              Buscar metadados da Steam agora
-            </Button>
+            <Space>
+              <Button
+                icon={<PictureOutlined />}
+                loading={resolvingMetadata}
+                onClick={async () => {
+                  queryClient.setQueryData(METADATA_RESOLVE_STATUS_KEY, { resolving: true })
+                  try {
+                    const result = await window.api.metadata.resolveMissing()
+                    void queryClient.invalidateQueries({ queryKey: ['deals'] })
+                    void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+                    void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
+                    message.success(
+                      `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
+                    )
+                  } catch (error) {
+                    showError(error)
+                  } finally {
+                    void queryClient.invalidateQueries({ queryKey: METADATA_RESOLVE_STATUS_KEY })
+                  }
+                }}
+              >
+                Buscar metadados da Steam agora
+              </Button>
+              {resolvingMetadata && (
+                <Button
+                  danger
+                  onClick={async () => {
+                    try {
+                      await window.api.metadata.cancelResolve()
+                    } catch (error) {
+                      showError(error)
+                    }
+                  }}
+                >
+                  Cancelar
+                </Button>
+              )}
+            </Space>
           </Form.Item>
         </Form>
       </Card>

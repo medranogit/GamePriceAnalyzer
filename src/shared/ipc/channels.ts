@@ -21,6 +21,8 @@ export const IPC_CHANNELS = {
   notifiedDealsClear: 'notifiedDeals:clear',
   notificationsDismissAll: 'notifications:dismissAll',
   metadataResolveMissing: 'metadata:resolveMissing',
+  metadataResolveCancel: 'metadata:resolveCancel',
+  metadataResolveStatus: 'metadata:resolveStatus',
   metadataGetAll: 'metadata:getAll',
   achievementsGet: 'achievements:get',
   secretsStatus: 'secrets:status',
