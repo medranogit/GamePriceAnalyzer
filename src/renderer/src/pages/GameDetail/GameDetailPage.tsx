@@ -1,14 +1,18 @@
+import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Empty, Tag, Typography } from 'antd'
+import { Button, Empty, message, Space, Tag, Tooltip, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
   ExportOutlined,
+  FolderOpenOutlined,
   KeyOutlined,
   ShopOutlined,
+  SyncOutlined,
   TrophyOutlined
 } from '@ant-design/icons'
 import styled from 'styled-components'
 import { useDeals, useWishlistDealsCache } from '@renderer/hooks/useDeals'
+import { useResolveGameMetadata, useResolveOneProgress } from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatPrice } from '@renderer/lib/formatters'
 import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
@@ -105,6 +109,11 @@ export function GameDetailPage() {
   const { data: wishlistDeals = [] } = useWishlistDealsCache()
   const deal =
     deals.find((d) => String(d.appId) === appId) ?? wishlistDeals.find((d) => String(d.appId) === appId)
+  const resolveMetadata = useResolveGameMetadata()
+  const { data: resolveProgress } = useResolveOneProgress(deal?.appId ?? -1, resolveMetadata.isPending)
+  const [mediaRefreshToken, setMediaRefreshToken] = useState(0)
+  const [openingMediaFolder, setOpeningMediaFolder] = useState(false)
+  const autoResolveTriggeredRef = useRef(false)
 
   if (!deal) {
     return (
@@ -128,17 +137,92 @@ export function GameDetailPage() {
   const bestCurrent = getBestCurrentPrice(deal)
   const historicalLow = getBestHistoricalLow(deal)
 
+  const handleResolveMetadata = (): void => {
+    if (deal.appId === null) return
+    resolveMetadata.mutate(deal.appId, {
+      onSuccess: (result) => {
+        if (result) {
+          message.success(`Metadata atualizada para "${result.title}".`)
+          setMediaRefreshToken((token) => token + 1)
+        } else {
+          message.warning(`Não consegui metadata da Steam para "${deal.title}".`)
+        }
+      },
+      onError: (error) => {
+        message.error(error instanceof Error ? error.message : 'Falha ao buscar metadata.')
+      }
+    })
+  }
+
+  const handleOpenMediaFolder = async (): Promise<void> => {
+    if (deal.appId === null) return
+    setOpeningMediaFolder(true)
+    try {
+      await window.api.localMedia.openGameFolder(deal.appId)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Falha ao abrir a pasta.')
+    } finally {
+      setOpeningMediaFolder(false)
+    }
+  }
+
+  const handleLocalMediaMissing = (): void => {
+    if (deal.appId === null || autoResolveTriggeredRef.current || resolveMetadata.isPending) return
+    autoResolveTriggeredRef.current = true
+    message.info(`Mídia local de "${deal.title}" não encontrada — buscando de novo...`)
+    resolveMetadata.mutate(deal.appId, {
+      onSuccess: (result) => {
+        if (result) {
+          message.success(`Metadata atualizada para "${result.title}".`)
+          setMediaRefreshToken((token) => token + 1)
+        }
+      },
+      onError: (error) => {
+        message.error(error instanceof Error ? error.message : 'Falha ao buscar metadata.')
+      }
+    })
+  }
+
   return (
     <div>
       <TopBar>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           Voltar
         </Button>
-        {steamStoreUrl && (
-          <a href={steamStoreUrl} target="_blank" rel="noreferrer">
-            <Button icon={<ExportOutlined />}>Ver na Steam</Button>
-          </a>
-        )}
+        <Space>
+          {resolveMetadata.isPending && resolveProgress && resolveProgress.total > 0 && (
+            <Text type="success" strong>
+              {Math.round((resolveProgress.completed / resolveProgress.total) * 100)}%
+            </Text>
+          )}
+          {deal.appId !== null && (
+            <Tooltip title="Busca a metadata da Steam (capa, gênero, sinopse, trailer...) só deste jogo">
+              <Button
+                icon={<SyncOutlined />}
+                loading={resolveMetadata.isPending}
+                onClick={handleResolveMetadata}
+              >
+                Buscar metadados da Steam
+              </Button>
+            </Tooltip>
+          )}
+          {deal.appId !== null && (
+            <Tooltip title="Abre a pasta onde a mídia local desse jogo (capa, screenshots, trailers baixados) fica salva">
+              <Button
+                icon={<FolderOpenOutlined />}
+                loading={openingMediaFolder}
+                onClick={handleOpenMediaFolder}
+              >
+                Abrir pasta de mídia
+              </Button>
+            </Tooltip>
+          )}
+          {steamStoreUrl && (
+            <a href={steamStoreUrl} target="_blank" rel="noreferrer">
+              <Button icon={<ExportOutlined />}>Ver na Steam</Button>
+            </a>
+          )}
+        </Space>
       </TopBar>
 
       <GameHero
@@ -153,6 +237,8 @@ export function GameDetailPage() {
         shortDescription={deal.shortDescription}
         trailers={deal.trailers ?? []}
         screenshots={deal.screenshots ?? []}
+        mediaRefreshToken={mediaRefreshToken}
+        onLocalMediaMissing={handleLocalMediaMissing}
       />
 
       <HighlightGrid>

@@ -1,26 +1,8 @@
-import type { GameMetadata } from '@shared/types'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync'
-
-/** Todo campo de GameMetadata exceto o id — usado só pra detectar cache incompleto (ver isMetadataIncomplete). */
-const METADATA_FIELDS: Array<keyof GameMetadata> = [
-  'title',
-  'genres',
-  'headerImageUrl',
-  'steamPrice',
-  'steamDiscountPercent',
-  'steamFullPrice',
-  'shortDescription',
-  'developers',
-  'publishers',
-  'releaseDate',
-  'metacriticScore',
-  'recommendationsTotal',
-  'screenshots',
-  'trailers'
-]
+import { isMetadataIncomplete } from '../isMetadataIncomplete'
 
 export interface ResolveMissingMetadataResult {
   resolved: number
@@ -83,7 +65,9 @@ export class ResolveMissingMetadata {
     for (const game of this.cacheRepository.getOwnedGames()) {
       targetsByAppId.set(game.appId, { appId: game.appId, title: game.name })
     }
-    const missing = [...targetsByAppId.values()].filter((item) => this.isMetadataIncomplete(item.appId))
+    const missing = [...targetsByAppId.values()].filter((item) =>
+      isMetadataIncomplete(this.cacheRepository.getMetadata(item.appId))
+    )
 
     const scopeLabel = scope === 'library' ? 'biblioteca' : 'wishlist + biblioteca'
     this.sessionLogRepository.log(
@@ -131,18 +115,5 @@ export class ResolveMissingMetadata {
       `Metadata resolvida: ${resolved}/${missing.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
     )
     return { resolved, failed, synced }
-  }
-
-  /**
-   * Considera "incompleta" tanto a ausência total de metadata quanto uma
-   * metadata cacheada por uma versão anterior de GameMetadata — checa contra
-   * TODOS os campos atuais (METADATA_FIELDS), não um campo específico, então
-   * um campo novo adicionado no futuro já é pego automaticamente, sem
-   * precisar lembrar de atualizar essa checagem de novo.
-   */
-  private isMetadataIncomplete(appId: number): boolean {
-    const metadata = this.cacheRepository.getMetadata(appId)
-    if (!metadata) return true
-    return METADATA_FIELDS.some((field) => metadata[field] === undefined)
   }
 }

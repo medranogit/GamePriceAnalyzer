@@ -536,6 +536,23 @@ export function GameHero({
     setActiveMediaIndex(mediaItems.findIndex((item) => item.type === 'image' && item.url === url))
   }
 
+  useEffect(() => {
+    if (activeMediaIndex === null) return
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft') {
+        setActiveMediaIndex((current) => (current !== null && current > 0 ? current - 1 : current))
+      } else if (event.key === 'ArrowRight') {
+        setActiveMediaIndex((current) =>
+          current !== null && current < mediaItems.length - 1 ? current + 1 : current
+        )
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeMediaIndex, mediaItems.length])
+
   return (
     <>
       <PageTitle level={2}>{title}</PageTitle>

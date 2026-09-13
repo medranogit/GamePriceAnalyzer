@@ -5,6 +5,7 @@ import type { GameMetadataRepository } from '../repositories/GameMetadataReposit
 import type { PriceHistoryRepository } from '../repositories/PriceHistoryRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
+import { isMetadataIncomplete } from '../isMetadataIncomplete'
 
 /**
  * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
@@ -122,15 +123,16 @@ export class FetchOwnableDeals {
       }
 
       const cached = this.cacheRepository.getMetadata(deal.appId)
-      if (!cached) {
+      const needsFetch = isMetadataIncomplete(cached)
+      if (needsFetch) {
         this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${deal.title}"...`)
         newlyResolvedCount += 1
       }
-      const metadata = cached ?? (await this.metadataRepository.fetchMetadata(deal.appId))
-      if (metadata && !cached) {
+      const metadata = needsFetch ? await this.metadataRepository.fetchMetadata(deal.appId) : cached
+      if (metadata && needsFetch) {
         this.cacheRepository.setMetadata(metadata)
       }
-      if (!metadata && !cached) {
+      if (!metadata && needsFetch) {
         this.sessionLogRepository.log(
           'warn',
           `Não consegui metadata da Steam pra "${deal.title}" — tento de novo no próximo ciclo.`

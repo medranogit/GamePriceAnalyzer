@@ -241,6 +241,81 @@ describe('FetchOwnableDeals', () => {
     expect(fetchMetadata).not.toHaveBeenCalled()
   })
 
+  it('busca metadata de novo quando o cache está incompleto (ex: sem trailers, de antes desse campo existir)', async () => {
+    const incompleteMetadata = {
+      appId: 2,
+      title: 'Game 2',
+      genres: ['Ação'],
+      headerImageUrl: null,
+      steamPrice: null,
+      steamDiscountPercent: null,
+      steamFullPrice: null,
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: []
+      // trailers ausente de propósito — simula cache de antes desse campo existir
+    } as unknown as GameMetadata
+    const freshMetadata: GameMetadata = { ...incompleteMetadata, trailers: [] }
+    const fetchMetadata = vi.fn(async () => freshMetadata)
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(2)],
+      getMetadata: (appId) => (appId === 2 ? incompleteMetadata : null)
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository()
+    )
+
+    await useCase.execute()
+
+    expect(fetchMetadata).toHaveBeenCalledWith(2)
+  })
+
+  it('não busca metadata de novo quando o jogo já tem trailers resolvidos como vazio (sem trailer na Steam mesmo)', async () => {
+    const metadata: GameMetadata = {
+      appId: 2,
+      title: 'Game 2',
+      genres: ['Ação'],
+      headerImageUrl: null,
+      steamPrice: null,
+      steamDiscountPercent: null,
+      steamFullPrice: null,
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: [],
+      trailers: []
+    }
+    const fetchMetadata = vi.fn(async () => null)
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(2)],
+      getMetadata: (appId) => (appId === 2 ? metadata : null)
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository()
+    )
+
+    await useCase.execute()
+
+    expect(fetchMetadata).not.toHaveBeenCalled()
+  })
+
   it('retoma uma busca interrompida: pula quem já foi buscado no ciclo anterior e busca só o resto', async () => {
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds((appIds) =>
       appIds.map((appId) => makeDeal(appId))
