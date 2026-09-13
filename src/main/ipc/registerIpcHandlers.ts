@@ -205,6 +205,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
     deps.fetchSingleGameMetadata.execute(appId)
   )
 
+  ipcMain.handle(IPC_CHANNELS.metadataResolveOneProgress, (_event, appId: number) =>
+    deps.fetchSingleGameMetadata.getProgress(appId)
+  )
+
   ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
 
   ipcMain.handle(IPC_CHANNELS.localMediaOpenGameFolder, async (_event, appId: number) => {

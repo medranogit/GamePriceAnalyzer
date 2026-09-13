@@ -1,6 +1,7 @@
 import type { GameMetadata } from '@shared/types'
 import type { GameMetadataRepository } from '../../domain/repositories/GameMetadataRepository'
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository'
+import type { SingleGameFetchProgressTracker } from '../../domain/SingleGameFetchProgressTracker'
 import type { LocalImageCache } from '../storage/LocalImageCache'
 
 /**
@@ -13,7 +14,8 @@ export class LocalImageCachingGameMetadataRepository implements GameMetadataRepo
   constructor(
     private readonly inner: GameMetadataRepository,
     private readonly settingsRepository: SettingsRepository,
-    private readonly imageCache: LocalImageCache
+    private readonly imageCache: LocalImageCache,
+    private readonly progressTracker: SingleGameFetchProgressTracker
   ) {}
 
   async fetchMetadata(appId: number): Promise<GameMetadata | null> {
@@ -21,17 +23,25 @@ export class LocalImageCachingGameMetadataRepository implements GameMetadataRepo
     if (!metadata) return metadata
     if (!this.settingsRepository.get().downloadImagesLocally) return metadata
 
+    const cacheImage = async (url: string): Promise<string> => {
+      const result = await this.imageCache.cacheImage(url, appId)
+      this.progressTracker.addCompleted(appId)
+      return result
+    }
+
+    const imageCount =
+      (metadata.headerImageUrl ? 1 : 0) +
+      metadata.screenshots.length +
+      metadata.trailers.filter((trailer) => trailer.thumbnailUrl).length
+    this.progressTracker.addTotal(appId, imageCount)
+
     const [headerImageUrl, screenshots, trailers] = await Promise.all([
-      metadata.headerImageUrl
-        ? this.imageCache.cacheImage(metadata.headerImageUrl, appId)
-        : metadata.headerImageUrl,
-      Promise.all(metadata.screenshots.map((url) => this.imageCache.cacheImage(url, appId))),
+      metadata.headerImageUrl ? cacheImage(metadata.headerImageUrl) : metadata.headerImageUrl,
+      Promise.all(metadata.screenshots.map((url) => cacheImage(url))),
       Promise.all(
         metadata.trailers.map(async (trailer) => ({
           ...trailer,
-          thumbnailUrl: trailer.thumbnailUrl
-            ? await this.imageCache.cacheImage(trailer.thumbnailUrl, appId)
-            : trailer.thumbnailUrl
+          thumbnailUrl: trailer.thumbnailUrl ? await cacheImage(trailer.thumbnailUrl) : trailer.thumbnailUrl
         }))
       )
     ])

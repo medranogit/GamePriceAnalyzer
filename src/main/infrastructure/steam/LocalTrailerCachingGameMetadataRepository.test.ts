@@ -3,6 +3,7 @@ import type { GameMetadata } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import type { GameMetadataRepository } from '../../domain/repositories/GameMetadataRepository'
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository'
+import { SingleGameFetchProgressTracker } from '../../domain/SingleGameFetchProgressTracker'
 import type { LocalTrailerCache } from '../storage/LocalTrailerCache'
 import { LocalTrailerCachingGameMetadataRepository } from './LocalTrailerCachingGameMetadataRepository'
 
@@ -51,7 +52,8 @@ describe('LocalTrailerCachingGameMetadataRepository', () => {
     const repository = new LocalTrailerCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(false),
-      trailerCache
+      trailerCache,
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await repository.fetchMetadata(1)
@@ -66,10 +68,13 @@ describe('LocalTrailerCachingGameMetadataRepository', () => {
       async (url: string) => `app-video://trailers/cached/${encodeURIComponent(url)}`
     )
     const trailerCache = { cacheTrailer } as unknown as LocalTrailerCache
+    const progressTracker = new SingleGameFetchProgressTracker()
+    progressTracker.start(1)
     const repository = new LocalTrailerCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(true),
-      trailerCache
+      trailerCache,
+      progressTracker
     )
 
     const result = await repository.fetchMetadata(1)
@@ -79,6 +84,7 @@ describe('LocalTrailerCachingGameMetadataRepository', () => {
     expect(result?.trailers[0].url).toContain('app-video://')
     expect(result?.trailers[0].thumbnailUrl).toBe('https://steamstatic.example.com/thumb1.jpg')
     expect(result?.trailers[1].thumbnailUrl).toBe('https://steamstatic.example.com/thumb2.jpg')
+    expect(progressTracker.getStatus(1)).toEqual({ completed: 2, total: 2 })
   })
 
   it('devolve null sem chamar o cache quando a Steam não devolve metadata', async () => {
@@ -88,7 +94,8 @@ describe('LocalTrailerCachingGameMetadataRepository', () => {
     const repository = new LocalTrailerCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(true),
-      trailerCache
+      trailerCache,
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await repository.fetchMetadata(1)

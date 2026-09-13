@@ -3,6 +3,7 @@ import type { GameDeal, GameMetadata } from '@shared/types'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
+import { SingleGameFetchProgressTracker } from '../SingleGameFetchProgressTracker'
 import { FetchSingleGameMetadata } from './FetchSingleGameMetadata'
 
 function makeSessionLogRepository(): SessionLogRepository {
@@ -72,7 +73,8 @@ describe('FetchSingleGameMetadata', () => {
     const useCase = new FetchSingleGameMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await useCase.execute(1)
@@ -115,7 +117,8 @@ describe('FetchSingleGameMetadata', () => {
     const useCase = new FetchSingleGameMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      new SingleGameFetchProgressTracker()
     )
 
     await useCase.execute(1)
@@ -125,6 +128,47 @@ describe('FetchSingleGameMetadata', () => {
     expect(updatedDeal.shortDescription).toBe('Sinopse nova.')
   })
 
+  it('não dispara uma segunda busca pro mesmo AppID enquanto a primeira ainda está rodando', async () => {
+    const cacheRepository = makeCacheRepository()
+    let resolveFetch: (metadata: GameMetadata) => void = () => {}
+    const fetchMetadata = vi.fn(
+      () =>
+        new Promise<GameMetadata>((resolve) => {
+          resolveFetch = resolve
+        })
+    )
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new FetchSingleGameMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      new SingleGameFetchProgressTracker()
+    )
+
+    const first = useCase.execute(1)
+    const second = useCase.execute(1)
+    resolveFetch(makeMetadata(1))
+    await Promise.all([first, second])
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+  })
+
+  it('permite buscas simultâneas pra AppIDs diferentes', async () => {
+    const cacheRepository = makeCacheRepository()
+    const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new FetchSingleGameMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      new SingleGameFetchProgressTracker()
+    )
+
+    await Promise.all([useCase.execute(1), useCase.execute(2)])
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(2)
+  })
+
   it('retorna null e não mexe no cache quando a Steam não devolve metadata', async () => {
     const cacheRepository = makeCacheRepository()
     const fetchMetadata = vi.fn(async () => null)
@@ -132,7 +176,8 @@ describe('FetchSingleGameMetadata', () => {
     const useCase = new FetchSingleGameMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await useCase.execute(1)

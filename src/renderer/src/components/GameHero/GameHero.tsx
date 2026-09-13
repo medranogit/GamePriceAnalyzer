@@ -379,6 +379,110 @@ function SimpleCarousel<T>({
 
 type MediaItem = { type: 'video'; trailer: GameTrailer } | { type: 'image'; url: string }
 
+/** Só as URLs locais (`app-image://`/`app-video://`) indicam um arquivo baixado que pode ter sumido da
+ * pasta de mídia — uma URL remota (https://) falhando é só uma instabilidade de rede passageira, não
+ * justifica forçar uma busca de metadata inteira de novo. */
+function isLocalMediaUrl(url: string | undefined): boolean {
+  return url?.startsWith('app-image://') === true || url?.startsWith('app-video://') === true
+}
+
+const MAX_IMAGE_RETRIES = 3
+const IMAGE_RETRY_DELAY_MS = 700
+
+/** Um arquivo local recém-baixado às vezes não está pronto pra leitura na hora (ex: antivírus escaneando
+ * o arquivo assim que é criado) — tenta de novo algumas vezes com um pequeno atraso antes de considerar
+ * que a imagem realmente sumiu. Trocar o `key` força o `<img>` a ser recriado, garantindo uma tentativa
+ * de rede nova (em vez do navegador possivelmente ignorar uma nova tentativa pro mesmo `src`). */
+function useImageRetry(
+  src: string | undefined,
+  refreshToken: number,
+  onGiveUp?: () => void
+): { retryKey: string; handleError: () => void } {
+  const retriesRef = useRef(0)
+  const [retryTick, setRetryTick] = useState(0)
+
+  useEffect(() => {
+    retriesRef.current = 0
+    setRetryTick(0)
+  }, [src, refreshToken])
+
+  const handleError = (): void => {
+    if (retriesRef.current < MAX_IMAGE_RETRIES) {
+      retriesRef.current += 1
+      setTimeout(() => setRetryTick((tick) => tick + 1), IMAGE_RETRY_DELAY_MS)
+    } else {
+      onGiveUp?.()
+    }
+  }
+
+  return { retryKey: `${src ?? ''}-${refreshToken}-${retryTick}`, handleError }
+}
+
+function RetryableTrailerThumbnail({
+  trailer,
+  coverUrl,
+  title,
+  mediaRefreshToken,
+  onLocalMediaMissing
+}: {
+  trailer: GameTrailer
+  coverUrl?: string
+  title: string
+  mediaRefreshToken: number
+  onLocalMediaMissing?: () => void
+}) {
+  const src = trailer.thumbnailUrl ?? coverUrl
+  const { retryKey, handleError } = useImageRetry(src, mediaRefreshToken, () => {
+    if (isLocalMediaUrl(src)) onLocalMediaMissing?.()
+  })
+  return <SlideThumbnail key={retryKey} src={src} alt={title} onError={handleError} />
+}
+
+function RetryableGalleryImage({
+  url,
+  title,
+  mediaRefreshToken,
+  onClick,
+  onLocalMediaMissing
+}: {
+  url: string
+  title: string
+  mediaRefreshToken: number
+  onClick: () => void
+  onLocalMediaMissing?: () => void
+}) {
+  const { retryKey, handleError } = useImageRetry(url, mediaRefreshToken, () => {
+    if (isLocalMediaUrl(url)) onLocalMediaMissing?.()
+  })
+  return (
+    <SlideThumbnail
+      key={retryKey}
+      src={url}
+      alt={title}
+      style={{ cursor: 'pointer' }}
+      onClick={onClick}
+      onError={handleError}
+    />
+  )
+}
+
+function RetryableLightboxImage({
+  url,
+  title,
+  mediaRefreshToken,
+  onLocalMediaMissing
+}: {
+  url: string
+  title: string
+  mediaRefreshToken: number
+  onLocalMediaMissing?: () => void
+}) {
+  const { retryKey, handleError } = useImageRetry(url, mediaRefreshToken, () => {
+    if (isLocalMediaUrl(url)) onLocalMediaMissing?.()
+  })
+  return <LightboxImage key={retryKey} src={url} alt={title} onError={handleError} />
+}
+
 interface GameHeroProps {
   title: string
   coverUrl?: string
@@ -391,6 +495,13 @@ interface GameHeroProps {
   shortDescription: string | null
   trailers: GameTrailer[]
   screenshots: string[]
+  /** Incrementado pela página sempre que um "Buscar metadados da Steam" (manual ou automático) resolve
+   * com sucesso — força um remount de todas as mídias mesmo quando a URL local não muda (o cache local usa
+   * o hash da URL remota, então uma re-busca sem mudança na Steam gera exatamente a mesma URL local). */
+  mediaRefreshToken?: number
+  /** Chamado quando uma imagem/vídeo local (baixado antes, sumido da pasta de mídia) não carrega — a
+   * página que usa este componente decide o que fazer (ex: forçar "Buscar metadados da Steam" de novo). */
+  onLocalMediaMissing?: () => void
 }
 
 export function GameHero({
@@ -404,7 +515,9 @@ export function GameHero({
   recommendationsTotal,
   shortDescription,
   trailers,
-  screenshots
+  screenshots,
+  mediaRefreshToken = 0,
+  onLocalMediaMissing
 }: GameHeroProps) {
   const showPublishers = publishers.length > 0 && publishers.join(',') !== developers.join(',')
   const galleryImages = coverUrl ? [coverUrl, ...screenshots.filter((url) => url !== coverUrl)] : screenshots
@@ -498,7 +611,13 @@ export function GameHero({
                 keyOf={(trailer) => trailer.url}
                 renderItem={(trailer) => (
                   <>
-                    <SlideThumbnail src={trailer.thumbnailUrl ?? coverUrl} alt={title} />
+                    <RetryableTrailerThumbnail
+                      trailer={trailer}
+                      coverUrl={coverUrl}
+                      title={title}
+                      mediaRefreshToken={mediaRefreshToken}
+                      onLocalMediaMissing={onLocalMediaMissing}
+                    />
                     <SlidePlayOverlay onClick={() => openTrailer(trailer)}>
                       <SlidePlayIcon />
                     </SlidePlayOverlay>
@@ -515,11 +634,12 @@ export function GameHero({
                 items={galleryImages}
                 keyOf={(url) => url}
                 renderItem={(url) => (
-                  <SlideThumbnail
-                    src={url}
-                    alt={title}
-                    style={{ cursor: 'pointer' }}
+                  <RetryableGalleryImage
+                    url={url}
+                    title={title}
+                    mediaRefreshToken={mediaRefreshToken}
                     onClick={() => openImage(url)}
+                    onLocalMediaMissing={onLocalMediaMissing}
                   />
                 )}
                 {...(trailers.length === 0
@@ -545,13 +665,21 @@ export function GameHero({
           <LightboxWrapper>
             {activeMedia.type === 'video' ? (
               <LightboxVideo
-                key={activeMedia.trailer.url}
+                key={`${activeMedia.trailer.url}-${mediaRefreshToken}`}
                 src={activeMedia.trailer.url}
                 poster={activeMedia.trailer.thumbnailUrl ?? coverUrl}
                 autoPlay
+                onError={() => {
+                  if (isLocalMediaUrl(activeMedia.trailer.url)) onLocalMediaMissing?.()
+                }}
               />
             ) : (
-              <LightboxImage src={activeMedia.url} alt={title} />
+              <RetryableLightboxImage
+                url={activeMedia.url}
+                title={title}
+                mediaRefreshToken={mediaRefreshToken}
+                onLocalMediaMissing={onLocalMediaMissing}
+              />
             )}
 
             {mediaItems.length > 1 && (

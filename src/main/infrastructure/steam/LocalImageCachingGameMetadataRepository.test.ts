@@ -3,6 +3,7 @@ import type { GameMetadata } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import type { GameMetadataRepository } from '../../domain/repositories/GameMetadataRepository'
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository'
+import { SingleGameFetchProgressTracker } from '../../domain/SingleGameFetchProgressTracker'
 import type { LocalImageCache } from '../storage/LocalImageCache'
 import { LocalImageCachingGameMetadataRepository } from './LocalImageCachingGameMetadataRepository'
 
@@ -47,7 +48,8 @@ describe('LocalImageCachingGameMetadataRepository', () => {
     const repository = new LocalImageCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(false),
-      imageCache
+      imageCache,
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await repository.fetchMetadata(1)
@@ -61,10 +63,13 @@ describe('LocalImageCachingGameMetadataRepository', () => {
     const inner: GameMetadataRepository = { fetchMetadata: vi.fn(async () => metadata) }
     const cacheImage = vi.fn(async (url: string) => `app-image://cache/${encodeURIComponent(url)}`)
     const imageCache = { cacheImage } as unknown as LocalImageCache
+    const progressTracker = new SingleGameFetchProgressTracker()
+    progressTracker.start(1)
     const repository = new LocalImageCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(true),
-      imageCache
+      imageCache,
+      progressTracker
     )
 
     const result = await repository.fetchMetadata(1)
@@ -79,6 +84,9 @@ describe('LocalImageCachingGameMetadataRepository', () => {
     expect(result?.screenshots.every((url) => url.startsWith('app-image://'))).toBe(true)
     expect(result?.trailers[0].thumbnailUrl).toContain('app-image://')
     expect(result?.trailers[0].url).toBe('https://steamstatic.example.com/trailer.m3u8')
+
+    // 1 capa + 2 screenshots + 1 miniatura de trailer = 4 itens, todos concluídos.
+    expect(progressTracker.getStatus(1)).toEqual({ completed: 4, total: 4 })
   })
 
   it('devolve null sem chamar o cache quando a Steam não devolve metadata', async () => {
@@ -88,7 +96,8 @@ describe('LocalImageCachingGameMetadataRepository', () => {
     const repository = new LocalImageCachingGameMetadataRepository(
       inner,
       makeSettingsRepository(true),
-      imageCache
+      imageCache,
+      new SingleGameFetchProgressTracker()
     )
 
     const result = await repository.fetchMetadata(1)

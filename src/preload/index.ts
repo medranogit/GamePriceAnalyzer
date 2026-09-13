@@ -55,6 +55,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveStatus),
     resolveOne: (appId: number): Promise<GameMetadata | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOne, appId),
+    getResolveOneProgress: (appId: number): Promise<{ completed: number; total: number } | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOneProgress, appId),
     getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
   },
   localMedia: {

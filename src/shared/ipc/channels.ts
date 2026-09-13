@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   metadataResolveCancel: 'metadata:resolveCancel',
   metadataResolveStatus: 'metadata:resolveStatus',
   metadataResolveOne: 'metadata:resolveOne',
+  metadataResolveOneProgress: 'metadata:resolveOneProgress',
   metadataGetAll: 'metadata:getAll',
   localMediaOpenGameFolder: 'localMedia:openGameFolder',
   achievementsGet: 'achievements:get',

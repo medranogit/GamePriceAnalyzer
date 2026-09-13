@@ -42,6 +42,7 @@ import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
 import { RefreshLibraryMetadata } from './domain/use-cases/RefreshLibraryMetadata'
 import { FetchSingleGameMetadata } from './domain/use-cases/FetchSingleGameMetadata'
+import { SingleGameFetchProgressTracker } from './domain/SingleGameFetchProgressTracker'
 import { FetchGameAchievements } from './domain/use-cases/FetchGameAchievements'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
@@ -148,14 +149,17 @@ async function bootstrap(): Promise<void> {
   handleImageProtocol(getLocalMediaRootDir())
   const localTrailerCache = new LocalTrailerCache()
   handleVideoProtocol(getLocalMediaRootDir())
+  const singleGameFetchProgressTracker = new SingleGameFetchProgressTracker()
   const metadataRepository = new LocalTrailerCachingGameMetadataRepository(
     new LocalImageCachingGameMetadataRepository(
       new ThrottledGameMetadataRepository(new SteamStoreMetadataRepositoryImpl()),
       settingsRepository,
-      localImageCache
+      localImageCache,
+      singleGameFetchProgressTracker
     ),
     settingsRepository,
-    localTrailerCache
+    localTrailerCache,
+    singleGameFetchProgressTracker
   )
   const steamSearchRepository = new SteamSearchRepositoryImpl()
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
@@ -206,7 +210,8 @@ async function bootstrap(): Promise<void> {
   const fetchSingleGameMetadata = new FetchSingleGameMetadata(
     cacheRepository,
     metadataRepository,
-    sessionLogRepository
+    sessionLogRepository,
+    singleGameFetchProgressTracker
   )
   const fetchGameAchievements = new FetchGameAchievements(steamAchievementsRepository)
 

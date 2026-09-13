@@ -38,6 +38,18 @@ export function useResolveGameMetadata() {
   })
 }
 
+/** Progresso (capa/screenshots/trailers baixados) de uma busca individual em andamento — só faz sentido
+ * ligar `enabled` enquanto o botão "Buscar metadados da Steam" desse jogo estiver com a busca pendente. */
+export function useResolveOneProgress(appId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['metadata-resolve-one-progress', appId],
+    queryFn: () => window.api.metadata.getResolveOneProgress(appId),
+    enabled,
+    refetchInterval: 500,
+    refetchIntervalInBackground: true
+  })
+}
+
 export function useGameAchievements(appId: number | null) {
   return useQuery({
     queryKey: ['achievements', appId],

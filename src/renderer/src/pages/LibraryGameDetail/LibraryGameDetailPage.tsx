@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Empty, message, Progress, Space, Tooltip, Typography } from 'antd'
 import {
@@ -11,7 +11,12 @@ import {
 } from '@ant-design/icons'
 import styled from 'styled-components'
 import { useLibrary } from '@renderer/hooks/useLibrary'
-import { useGameAchievements, useMetadataCache, useResolveGameMetadata } from '@renderer/hooks/useMetadata'
+import {
+  useGameAchievements,
+  useMetadataCache,
+  useResolveGameMetadata,
+  useResolveOneProgress
+} from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatDate } from '@renderer/lib/formatters'
 
@@ -121,10 +126,20 @@ export function LibraryGameDetailPage() {
   const { data: metadataList = [] } = useMetadataCache()
   const { data: achievements } = useGameAchievements(numericAppId)
   const resolveMetadata = useResolveGameMetadata()
+  const { data: resolveProgress } = useResolveOneProgress(numericAppId ?? -1, resolveMetadata.isPending)
   const [openingMediaFolder, setOpeningMediaFolder] = useState(false)
+  const [mediaRefreshToken, setMediaRefreshToken] = useState(0)
+  const autoResolveTriggeredRef = useRef(false)
 
   const game = games.find((g) => String(g.appId) === appId)
   const metadata = metadataList.find((m) => String(m.appId) === appId)
+
+  // Uma metadata nova (após um resolve bem-sucedido) libera o auto-resolve de novo — assim, se a mídia
+  // recém-baixada também sumir por algum motivo, ainda dá pra tentar de novo, sem loop infinito enquanto
+  // a MESMA metadata continuar apontando pros mesmos arquivos que sumiram.
+  useEffect(() => {
+    autoResolveTriggeredRef.current = false
+  }, [metadata])
 
   if (!game) {
     return (
@@ -145,6 +160,7 @@ export function LibraryGameDetailPage() {
       onSuccess: (result) => {
         if (result) {
           message.success(`Metadata atualizada para "${result.title}".`)
+          setMediaRefreshToken((token) => token + 1)
         } else {
           message.warning(`Não consegui metadata da Steam para "${game.name}".`)
         }
@@ -166,6 +182,25 @@ export function LibraryGameDetailPage() {
     }
   }
 
+  /** Uma imagem/vídeo local sumiu (ex: pasta de mídia apagada por fora do app) — força a mesma busca do
+   * botão "Buscar metadados da Steam", uma vez só por metadata, pra baixar tudo de novo automaticamente. */
+  const handleLocalMediaMissing = (): void => {
+    if (autoResolveTriggeredRef.current || resolveMetadata.isPending) return
+    autoResolveTriggeredRef.current = true
+    message.info(`Mídia local de "${game.name}" não encontrada — buscando de novo...`)
+    resolveMetadata.mutate(game.appId, {
+      onSuccess: (result) => {
+        if (result) {
+          message.success(`Metadata atualizada para "${result.title}".`)
+          setMediaRefreshToken((token) => token + 1)
+        }
+      },
+      onError: (error) => {
+        message.error(error instanceof Error ? error.message : 'Falha ao buscar metadata.')
+      }
+    })
+  }
+
   const sortedAchievements = achievements
     ? [...achievements.achievements].sort((a, b) => Number(b.achieved) - Number(a.achieved))
     : []
@@ -179,6 +214,11 @@ export function LibraryGameDetailPage() {
           Voltar
         </Button>
         <Space>
+          {resolveMetadata.isPending && resolveProgress && resolveProgress.total > 0 && (
+            <Text type="success" strong>
+              {Math.round((resolveProgress.completed / resolveProgress.total) * 100)}%
+            </Text>
+          )}
           <Tooltip title="Busca a metadata da Steam (capa, gênero, sinopse, trailer...) só deste jogo">
             <Button
               icon={<SyncOutlined />}
@@ -215,6 +255,8 @@ export function LibraryGameDetailPage() {
         shortDescription={metadata?.shortDescription ?? null}
         trailers={metadata?.trailers ?? []}
         screenshots={metadata?.screenshots ?? []}
+        mediaRefreshToken={mediaRefreshToken}
+        onLocalMediaMissing={handleLocalMediaMissing}
       />
 
       <StatsGrid>
