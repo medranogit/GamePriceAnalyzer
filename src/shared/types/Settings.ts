@@ -10,6 +10,8 @@ export interface FilterSettings {
 export interface PollingSettings {
   intervalMinutes: number
   wishlistSyncIntervalMinutes: number
+  librarySyncIntervalMinutes: number
+  metadataBackfillIntervalMinutes: number
   quietHoursStart: string | null
   quietHoursEnd: string | null
   /** Desconto mínimo (efetivo ou da Steam) pra disparar notificação — independente do filtro de exibição do Dashboard. */
@@ -49,7 +51,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   polling: {
     intervalMinutes: 60,
-    wishlistSyncIntervalMinutes: 60,
+    wishlistSyncIntervalMinutes: 120,
+    librarySyncIntervalMinutes: 30,
+    metadataBackfillIntervalMinutes: 60,
     quietHoursStart: null,
     quietHoursEnd: null,
     notifyMinDiscountPercent: 50,

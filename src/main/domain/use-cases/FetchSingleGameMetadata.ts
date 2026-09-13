@@ -4,6 +4,7 @@ import type { GameMetadataRepository } from '../repositories/GameMetadataReposit
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import type { FetchProgressStatus, SingleGameFetchProgressTracker } from '../SingleGameFetchProgressTracker'
 import { syncCachedDealsForAppId } from '../dealMetadataSync'
+import { describeMetadata } from '../describeMetadata'
 
 export class FetchSingleGameMetadata {
   private readonly inFlight = new Map<number, Promise<GameMetadata | null>>()
@@ -35,7 +36,10 @@ export class FetchSingleGameMetadata {
 
   private async run(appId: number): Promise<GameMetadata | null> {
     const title = this.cacheRepository.getOwnedGames().find((game) => game.appId === appId)?.name
-    this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${title ?? `AppID ${appId}`}"...`)
+    this.sessionLogRepository.log(
+      'info',
+      `Buscando metadata da Steam individualmente pra "${title ?? `AppID ${appId}`}" (sincronização manual, um jogo só)...`
+    )
 
     this.progressTracker.start(appId)
     try {
@@ -43,14 +47,17 @@ export class FetchSingleGameMetadata {
       if (!metadata) {
         this.sessionLogRepository.log(
           'warn',
-          `Não consegui metadata da Steam pra "${title ?? `AppID ${appId}`}".`
+          `Não consegui metadata da Steam pra "${title ?? `AppID ${appId}`}" (sincronização manual, um jogo só).`
         )
         return null
       }
 
       this.cacheRepository.setMetadata(metadata)
       syncCachedDealsForAppId(this.cacheRepository, appId, metadata, true)
-      this.sessionLogRepository.log('success', `Metadata resolvida pra "${metadata.title}".`)
+      this.sessionLogRepository.log(
+        'success',
+        `Metadata resolvida individualmente pra "${metadata.title}": ${describeMetadata(metadata)}.`
+      )
       return metadata
     } finally {
       this.progressTracker.finish(appId)

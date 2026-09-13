@@ -3,6 +3,7 @@ import type { GameMetadataRepository } from '../repositories/GameMetadataReposit
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync'
 import { isMetadataIncomplete } from '../isMetadataIncomplete'
+import { describeMetadata } from '../describeMetadata'
 
 export interface ResolveMissingMetadataResult {
   resolved: number
@@ -92,7 +93,10 @@ export class ResolveMissingMetadata {
         this.cacheRepository.setMetadata(metadata)
         resolved += 1
         synced += syncCachedDealsForAppId(this.cacheRepository, item.appId, metadata)
-        this.sessionLogRepository.log('success', `Metadata resolvida pra "${item.title}".`)
+        this.sessionLogRepository.log(
+          'success',
+          `Metadata resolvida pra "${item.title}": ${describeMetadata(metadata)}.`
+        )
       } else {
         failed += 1
         this.sessionLogRepository.log('warn', `Não consegui metadata da Steam pra "${item.title}".`)

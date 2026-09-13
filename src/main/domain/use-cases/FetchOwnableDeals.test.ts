@@ -61,14 +61,14 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
   }
 }
 
-/** Simula o GGDealsApiClient real: entrega tudo num lote só, através do onBatch. */
+/** Simula o GGDealsApiClient real: entrega tudo num lote só, através do onBatch, sem cortar por rate limit. */
 function makeFetchDealsBySteamAppIds(
   buildDeals: (appIds: number[]) => GameDeal[]
 ): DealsRepository['fetchDealsBySteamAppIds'] {
   return vi.fn(async (appIds: number[], onBatch?: (deals: GameDeal[]) => Promise<void> | void) => {
     const deals = buildDeals(appIds)
     await onBatch?.(deals)
-    return deals
+    return { deals, processedAppIdCount: appIds.length }
   })
 }
 
@@ -303,6 +303,28 @@ describe('FetchOwnableDeals', () => {
       getWishlist: () => [makeWishlistItem(2)],
       getMetadata: (appId) => (appId === 2 ? metadata : null)
     })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository()
+    )
+
+    await useCase.execute()
+
+    expect(fetchMetadata).not.toHaveBeenCalled()
+  })
+
+  it('não busca metadata pra oferta que já existia, mesmo sem nenhuma metadata em cache (só ofertas novas ganham metadata aqui)', async () => {
+    const fetchMetadata = vi.fn(async () => null)
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [
+      makeDeal(2, { currentRetailPrice: 40 })
+    ])
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(2)]
+    })
+    cacheRepository.setDeals([makeDeal(2, { currentRetailPrice: 50 })])
     const useCase = new FetchOwnableDeals(
       { fetchDealsBySteamAppIds },
       { fetchMetadata },

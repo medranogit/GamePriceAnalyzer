@@ -6,6 +6,7 @@ import type { PriceHistoryRepository } from '../repositories/PriceHistoryReposit
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { isMetadataIncomplete } from '../isMetadataIncomplete'
+import { describeMetadata } from '../describeMetadata'
 
 /**
  * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
@@ -20,10 +21,10 @@ import { isMetadataIncomplete } from '../isMetadataIncomplete'
  *
  * Cada lote do GG.deals é salvo (preço + metadata) assim que chega, e o AppID
  * sai da lista de "pendentes" (`deals-fetch-progress.json`) na hora — se o app
- * fechar no meio de uma busca grande (ex: lote 6/12), a próxima chamada a
- * `execute()` retoma só o que ainda falta, em vez de recomeçar do lote 1.
- * Isso é por-ciclo: assim que um ciclo termina (pendentes zera), a próxima
- * chamada começa um ciclo novo do zero (preço precisa ser sempre reconferido).
+ * fechar no meio de uma busca grande, ou se o rate limit do GG.deals acabar
+ * no meio do ciclo (`GGDealsApiClient` para de enviar lotes nesse caso), a
+ * próxima chamada a `execute()` retoma só o que ainda falta, priorizando
+ * quem ficou de fora, em vez de recomeçar do primeiro AppID.
  */
 export class FetchOwnableDeals {
   constructor(
@@ -68,18 +69,28 @@ export class FetchOwnableDeals {
     if (isResuming) {
       this.sessionLogRepository.log(
         'warn',
-        `Retomando busca de ofertas interrompida: ${toFetch.length}/${candidateAppIds.length} jogo(s) ainda faltam.`
+        `Retomando busca de ofertas: ${toFetch.length}/${candidateAppIds.length} jogo(s) ainda faltam (interrompida ou limitada pelo rate limit do ciclo anterior).`
       )
     }
 
     const pending = new Set(toFetch)
-    await this.dealsRepository.fetchDealsBySteamAppIds(toFetch, async (batchDeals) => {
-      await this.processBatch(batchDeals)
-      for (const deal of batchDeals) {
-        if (deal.appId !== null) pending.delete(deal.appId)
+    const { processedAppIdCount } = await this.dealsRepository.fetchDealsBySteamAppIds(
+      toFetch,
+      async (batchDeals) => {
+        await this.processBatch(batchDeals)
+        for (const deal of batchDeals) {
+          if (deal.appId !== null) pending.delete(deal.appId)
+        }
+        this.cacheRepository.setPendingDealsAppIds([...pending])
       }
-      this.cacheRepository.setPendingDealsAppIds([...pending])
-    })
+    )
+
+    if (processedAppIdCount < toFetch.length) {
+      this.sessionLogRepository.log(
+        'warn',
+        `Ciclo parcial: ${processedAppIdCount}/${toFetch.length} jogo(s) consultados no GG.deals. O restante entra primeiro no próximo ciclo.`
+      )
+    }
 
     const finalDeals = this.cacheRepository.getDeals()
     this.sessionLogRepository.log('success', `Concluído: ${finalDeals.length} oferta(s) atualizada(s).`)
@@ -89,6 +100,9 @@ export class FetchOwnableDeals {
   /** Salva preço/histórico/metadata de um lote assim que ele chega, e mescla no cache sem apagar o resto. */
   private async processBatch(batchDeals: GameDeal[]): Promise<void> {
     const previousDeals = this.cacheRepository.getDeals()
+    const previousAppIds = new Set(
+      previousDeals.filter((deal) => deal.appId !== null).map((deal) => deal.appId)
+    )
     const withFirstSeen = preserveFirstSeenAt(batchDeals, previousDeals)
 
     for (const deal of withFirstSeen) {
@@ -101,7 +115,7 @@ export class FetchOwnableDeals {
       )
     }
 
-    const enriched = await this.enrichWithMetadata(withFirstSeen)
+    const enriched = await this.enrichWithMetadata(withFirstSeen, previousAppIds)
 
     const dealsByAppId = new Map(
       previousDeals.filter((deal) => deal.appId !== null).map((deal) => [deal.appId, deal])
@@ -112,7 +126,15 @@ export class FetchOwnableDeals {
     this.cacheRepository.setDeals([...dealsByAppId.values()])
   }
 
-  private async enrichWithMetadata(deals: GameDeal[]): Promise<GameDeal[]> {
+  /**
+   * Só busca metadata da Steam pra oferta genuinamente nova (appId sem deal cacheado antes) — oferta já
+   * existente só tem o preço atualizado aqui. Preencher metadata faltando de quem já existe é
+   * responsabilidade do backfill dedicado (`ResolveMissingMetadata`, próprio timer).
+   */
+  private async enrichWithMetadata(
+    deals: GameDeal[],
+    previousAppIds: Set<number | null>
+  ): Promise<GameDeal[]> {
     const enriched: GameDeal[] = []
     let newlyResolvedCount = 0
 
@@ -122,20 +144,28 @@ export class FetchOwnableDeals {
         continue
       }
 
+      const isNewDeal = !previousAppIds.has(deal.appId)
       const cached = this.cacheRepository.getMetadata(deal.appId)
-      const needsFetch = isMetadataIncomplete(cached)
+      const needsFetch = isNewDeal && isMetadataIncomplete(cached)
       if (needsFetch) {
-        this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${deal.title}"...`)
+        this.sessionLogRepository.log(
+          'info',
+          `Buscando metadata da Steam pra "${deal.title}" (oferta nova)...`
+        )
         newlyResolvedCount += 1
       }
       const metadata = needsFetch ? await this.metadataRepository.fetchMetadata(deal.appId) : cached
       if (metadata && needsFetch) {
         this.cacheRepository.setMetadata(metadata)
+        this.sessionLogRepository.log(
+          'success',
+          `Metadata resolvida pra "${deal.title}": ${describeMetadata(metadata)}.`
+        )
       }
       if (!metadata && needsFetch) {
         this.sessionLogRepository.log(
           'warn',
-          `Não consegui metadata da Steam pra "${deal.title}" — tento de novo no próximo ciclo.`
+          `Não consegui metadata da Steam pra "${deal.title}" — o backfill tenta de novo depois.`
         )
       }
 

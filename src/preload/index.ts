@@ -6,9 +6,11 @@ import type {
   GameMetadata,
   HistoryEvent,
   OwnedGame,
+  QueueEntry,
   SessionLogEntry,
   SessionLogSession,
   SteamSearchResult,
+  TimerStatus,
   WishlistItem,
   WishlistPriceInfo
 } from '@shared/types'
@@ -57,7 +59,16 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOne, appId),
     getResolveOneProgress: (appId: number): Promise<{ completed: number; total: number } | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOneProgress, appId),
-    getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
+    getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll),
+    refreshAll: (): Promise<{ refreshed: number; failed: number; synced: number }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.metadataRefreshAll)
+  },
+  queues: {
+    getGGDeals: (): Promise<QueueEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetGGDeals),
+    getSteamMetadata: (): Promise<QueueEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetSteamMetadata)
+  },
+  timers: {
+    getAll: (): Promise<TimerStatus[]> => ipcRenderer.invoke(IPC_CHANNELS.timersGetAll)
   },
   localMedia: {
     openGameFolder: (appId: number): Promise<void> =>

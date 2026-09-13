@@ -45,13 +45,16 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       clear: noop
     },
     resolveMissingMetadata: { execute: noop } as never,
+    refreshLibraryMetadata: { execute: noop } as never,
     fetchSingleGameMetadata: { execute: noop } as never,
     fetchGameAchievements: { execute: noop } as never,
-    syncSteamLibrary: { execute: noop } as never,
+    librarySyncScheduler: { setIntervalMinutes: noop, notifyExternalRun: noop, runNow: noop } as never,
+    metadataBackfillScheduler: { setIntervalMinutes: noop, notifyExternalRun: noop } as never,
+    ggDealsQueueTracker: { getSnapshot: () => [] } as never,
+    steamMetadataQueueTracker: { getSnapshot: () => [] } as never,
     addWishlistItem: { execute: noop } as never,
     removeWishlistItem: { execute: noop } as never,
     refreshWishlistPrices: { execute: noop } as never,
-    syncSteamWishlist: { execute: noop } as never,
     steamSearchRepository: { searchGames: noop as never },
     scheduler: { runNow: noop, updateInterval: noop, start: noop, logStatus: noop } as never,
     secretsStore: { get: () => null, set: noop } as never,
@@ -65,7 +68,7 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       deleteSession: noop
     },
     pollingStateRepository: { getLastRunAt: () => null, setLastRunAt: noop },
-    wishlistSyncScheduler: { setIntervalMinutes: noop, notifyExternalRun: noop } as never
+    wishlistSyncScheduler: { setIntervalMinutes: noop, notifyExternalRun: noop, runNow: noop } as never
   }
 }
 

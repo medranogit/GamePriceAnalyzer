@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { useLibrary, useSyncLibrary } from '@renderer/hooks/useLibrary'
 import { useMetadataCache, useMetadataResolveStatus } from '@renderer/hooks/useMetadata'
+import { useTimersStatus } from '@renderer/hooks/useQueues'
 import { useSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
 import { getGenreIcon } from '@renderer/lib/genreIcons'
@@ -27,7 +28,6 @@ import {
   type LibraryGameCardData
 } from '@renderer/components/LibraryGameCard/LibraryGameCard'
 import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
-import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
 
 const { Title, Text } = Typography
 
@@ -55,6 +55,10 @@ export function LibraryPage() {
   const { data: resolveStatus } = useMetadataResolveStatus()
   const resolvingMetadata = resolveStatus?.resolving ?? false
   const syncLibrary = useSyncLibrary()
+  const { data: timers = [] } = useTimersStatus()
+  // Reflete o scheduler de verdade (main process), não só o mutation local — assim o botão aparece
+  // "rodando" mesmo se a sincronização foi forçada pela tela Fila de Chamadas, não só por aqui.
+  const librarySyncRunning = timers.find((timer) => timer.key === 'biblioteca')?.running ?? false
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
@@ -122,7 +126,6 @@ export function LibraryPage() {
           )}
         </Title>
         <Space align="center">
-          <PollingStatus />
           <RefreshCountdown dataUpdatedAt={metadataUpdatedAt} />
           {resolvingMetadata && (
             <Text type="secondary">
@@ -132,7 +135,7 @@ export function LibraryPage() {
           <Button
             type="primary"
             icon={<SyncOutlined />}
-            loading={syncLibrary.isPending}
+            loading={syncLibrary.isPending || librarySyncRunning}
             disabled={!settings?.steamId64}
             onClick={() => syncLibrary.mutate()}
           >

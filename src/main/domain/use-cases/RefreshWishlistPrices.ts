@@ -30,7 +30,9 @@ export class RefreshWishlistPrices {
         return []
       }
 
-      const rawDeals = await this.dealsRepository.fetchDealsBySteamAppIds(wishlist.map((w) => w.appId))
+      const { deals: rawDeals } = await this.dealsRepository.fetchDealsBySteamAppIds(
+        wishlist.map((w) => w.appId)
+      )
       const deals = preserveFirstSeenAt(rawDeals, this.cacheRepository.getWishlistDeals())
       this.cacheRepository.setWishlistDeals(deals.filter((d) => d.appId !== null))
       const dealsByAppId = new Map(deals.filter((d) => d.appId !== null).map((d) => [d.appId as number, d]))

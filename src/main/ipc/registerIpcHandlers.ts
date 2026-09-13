@@ -1,15 +1,13 @@
 import { ipcMain, shell } from 'electron'
 import { mkdir } from 'node:fs/promises'
-import type { AppSettings, GameDeal } from '@shared/types'
+import type { AppSettings, GameDeal, TimerStatus } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
 import { getGameMediaDir } from '../infrastructure/storage/localMediaPaths'
 import type { SettingsRepository } from '../domain/repositories/SettingsRepository'
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
-import type { SyncSteamLibrary } from '../domain/use-cases/SyncSteamLibrary'
 import type { AddWishlistItem } from '../domain/use-cases/AddWishlistItem'
 import type { RemoveWishlistItem } from '../domain/use-cases/RemoveWishlistItem'
 import type { RefreshWishlistPrices } from '../domain/use-cases/RefreshWishlistPrices'
-import type { SyncSteamWishlist } from '../domain/use-cases/SyncSteamWishlist'
 import type { SteamSearchRepository } from '../domain/repositories/SteamSearchRepository'
 import type { PollingScheduler } from '../infrastructure/scheduler/PollingScheduler'
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
@@ -24,8 +22,10 @@ import type {
   ResolveMissingMetadata,
   ResolveMissingMetadataScope
 } from '../domain/use-cases/ResolveMissingMetadata'
+import type { RefreshLibraryMetadata } from '../domain/use-cases/RefreshLibraryMetadata'
 import type { FetchSingleGameMetadata } from '../domain/use-cases/FetchSingleGameMetadata'
 import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchievements'
+import type { QueueActivityTracker } from '../domain/QueueActivityTracker'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
@@ -34,13 +34,16 @@ interface Dependencies {
   notificationService: NotificationService
   notifiedDealsRepository: NotifiedDealsRepository
   resolveMissingMetadata: ResolveMissingMetadata
+  refreshLibraryMetadata: RefreshLibraryMetadata
   fetchSingleGameMetadata: FetchSingleGameMetadata
   fetchGameAchievements: FetchGameAchievements
-  syncSteamLibrary: SyncSteamLibrary
+  librarySyncScheduler: LastRunScheduler
+  metadataBackfillScheduler: LastRunScheduler
+  ggDealsQueueTracker: QueueActivityTracker
+  steamMetadataQueueTracker: QueueActivityTracker
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
   refreshWishlistPrices: RefreshWishlistPrices
-  syncSteamWishlist: SyncSteamWishlist
   steamSearchRepository: SteamSearchRepository
   scheduler: PollingScheduler
   secretsStore: SecretsStore
@@ -66,6 +69,12 @@ export function registerIpcHandlers(deps: Dependencies): void {
     if (partial.polling?.wishlistSyncIntervalMinutes) {
       deps.wishlistSyncScheduler.setIntervalMinutes(updated.polling.wishlistSyncIntervalMinutes)
     }
+    if (partial.polling?.librarySyncIntervalMinutes) {
+      deps.librarySyncScheduler.setIntervalMinutes(updated.polling.librarySyncIntervalMinutes)
+    }
+    if (partial.polling?.metadataBackfillIntervalMinutes) {
+      deps.metadataBackfillScheduler.setIntervalMinutes(updated.polling.metadataBackfillIntervalMinutes)
+    }
     if (partial.autoStartOnBoot !== undefined) {
       deps.autoLaunchService.setEnabled(partial.autoStartOnBoot)
     }
@@ -79,7 +88,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
     if (!settings.steamId64) {
       throw new Error('SteamID64 não configurado. Cadastre em Configurações.')
     }
-    return deps.syncSteamLibrary.execute(settings.steamId64)
+    // Passa pelo scheduler (não chama o use-case direto) pra `isRunning()`/timer refletir corretamente
+    // essa chamada manual, e pra já reagendar o próximo tick automático a partir de agora.
+    await deps.librarySyncScheduler.runNow()
+    return deps.cacheRepository.getOwnedGames()
   })
 
   ipcMain.handle(IPC_CHANNELS.wishlistGetCached, () => deps.cacheRepository.getWishlist())
@@ -97,9 +109,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
     if (!settings.steamId64) {
       throw new Error('SteamID64 não configurado. Cadastre em Configurações.')
     }
-    const result = await deps.syncSteamWishlist.execute(settings.steamId64)
-    deps.wishlistSyncScheduler.notifyExternalRun()
-    return result
+    // Passa pelo scheduler (não chama o use-case direto) pra `isRunning()`/timer refletir corretamente
+    // essa chamada manual, e pra já reagendar o próximo tick automático a partir de agora.
+    await deps.wishlistSyncScheduler.runNow()
+    return deps.cacheRepository.getWishlist()
   })
 
   ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) =>
@@ -210,6 +223,50 @@ export function registerIpcHandlers(deps: Dependencies): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
+
+  ipcMain.handle(IPC_CHANNELS.metadataRefreshAll, () => {
+    // A busca incondicional que tá prestes a rodar já cobre tudo — reseta o timer dos outros dois
+    // schedulers de metadata Steam pra não rodarem de novo em cima do que acabou de ser forçado. O
+    // ciclo de Ofertas/GG.deals não entra nisso (preço precisa ser reconferido sempre).
+    deps.librarySyncScheduler.notifyExternalRun()
+    deps.metadataBackfillScheduler.notifyExternalRun()
+    return deps.refreshLibraryMetadata.execute('all')
+  })
+
+  ipcMain.handle(IPC_CHANNELS.queuesGetGGDeals, () => deps.ggDealsQueueTracker.getSnapshot())
+
+  ipcMain.handle(IPC_CHANNELS.queuesGetSteamMetadata, () => deps.steamMetadataQueueTracker.getSnapshot())
+
+  ipcMain.handle(IPC_CHANNELS.timersGetAll, (): TimerStatus[] => [
+    {
+      key: 'ofertas',
+      label: 'Ofertas (GG.deals)',
+      lastRunAt: deps.scheduler.getLastRunAt(),
+      intervalMinutes: deps.scheduler.getIntervalMinutes(),
+      running: deps.scheduler.isRunning()
+    },
+    {
+      key: 'wishlist',
+      label: 'Sincronização da Wishlist',
+      lastRunAt: deps.wishlistSyncScheduler.getLastRunAt(),
+      intervalMinutes: deps.wishlistSyncScheduler.getIntervalMinutes(),
+      running: deps.wishlistSyncScheduler.isRunning()
+    },
+    {
+      key: 'biblioteca',
+      label: 'Sincronização da Biblioteca',
+      lastRunAt: deps.librarySyncScheduler.getLastRunAt(),
+      intervalMinutes: deps.librarySyncScheduler.getIntervalMinutes(),
+      running: deps.librarySyncScheduler.isRunning()
+    },
+    {
+      key: 'backfill',
+      label: 'Backfill de metadata faltando',
+      lastRunAt: deps.metadataBackfillScheduler.getLastRunAt(),
+      intervalMinutes: deps.metadataBackfillScheduler.getIntervalMinutes(),
+      running: deps.metadataBackfillScheduler.isRunning()
+    }
+  ])
 
   ipcMain.handle(IPC_CHANNELS.localMediaOpenGameFolder, async (_event, appId: number) => {
     const dir = getGameMediaDir(appId)

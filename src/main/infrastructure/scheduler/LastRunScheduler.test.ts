@@ -94,4 +94,58 @@ describe('LastRunScheduler', () => {
 
     expect(scheduler.isRunning()).toBe(false)
   })
+
+  it('expõe label, último timestamp e intervalo pra tela de status', async () => {
+    const onTick = vi.fn().mockResolvedValue(undefined)
+    const repository = makeFakePollingStateRepository(null)
+    const scheduler = new LastRunScheduler(
+      'Sincronização da Biblioteca',
+      onTick,
+      repository,
+      makeFakeSessionLogRepository(),
+      30
+    )
+
+    expect(scheduler.getLabel()).toBe('Sincronização da Biblioteca')
+    expect(scheduler.getIntervalMinutes()).toBe(30)
+    expect(scheduler.getLastRunAt()).toBeNull()
+
+    scheduler.notifyExternalRun()
+
+    expect(scheduler.getLastRunAt()).toBe(repository.getLastRunAt())
+  })
+
+  it('setIntervalMinutes reseta lastRunAt — o próximo tick espera o intervalo novo inteiro, não o resto do antigo', async () => {
+    const onTick = vi.fn().mockResolvedValue(undefined)
+    // Com lastRunAt de 40min atrás e intervalo de 60min, faltariam só uns 20min pro próximo tick — se
+    // setIntervalMinutes(30) NÃO resetasse lastRunAt, os 40min já decorridos estourariam o novo
+    // intervalo de 30min na hora (dispararia quase imediatamente, bem antes da marca de 29min abaixo).
+    const fortyMinutesAgo = new Date(Date.now() - 40 * 60 * 1000).toISOString()
+    const repository = makeFakePollingStateRepository(fortyMinutesAgo)
+    const scheduler = new LastRunScheduler('Teste', onTick, repository, makeFakeSessionLogRepository(), 60)
+
+    scheduler.start()
+    scheduler.setIntervalMinutes(30)
+
+    expect(scheduler.getIntervalMinutes()).toBe(30)
+
+    await vi.advanceTimersByTimeAsync(29 * 60 * 1000)
+    expect(onTick).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    expect(onTick).toHaveBeenCalledTimes(1)
+  })
+
+  it('setInitialIntervalMinutes não mexe em lastRunAt nem reagenda (uso só na montagem inicial)', () => {
+    const onTick = vi.fn().mockResolvedValue(undefined)
+    const initialLastRunAt = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const repository = makeFakePollingStateRepository(initialLastRunAt)
+    const scheduler = new LastRunScheduler('Teste', onTick, repository, makeFakeSessionLogRepository(), 60)
+
+    scheduler.setInitialIntervalMinutes(65)
+
+    expect(repository.getLastRunAt()).toBe(initialLastRunAt)
+    expect(scheduler.getIntervalMinutes()).toBe(65)
+    expect(onTick).not.toHaveBeenCalled()
+  })
 })

@@ -2,6 +2,7 @@ import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync'
+import { describeMetadata } from '../describeMetadata'
 
 export interface RefreshLibraryMetadataResult {
   refreshed: number
@@ -9,17 +10,18 @@ export interface RefreshLibraryMetadataResult {
   synced: number
 }
 
+/** 'all' = wishlist + biblioteca (botão "Sobrescrever tudo" em Configurações). 'library' = só biblioteca. */
+export type RefreshMetadataScope = 'all' | 'library'
+
 /**
  * Diferente de ResolveMissingMetadata (que só preenche o que falta), essa reconfere a metadata de TODOS
- * os jogos da biblioteca — mesmo quem já tem tudo em cache — pra pegar mudanças que a Steam faz depois
+ * os alvos do escopo — mesmo quem já tem tudo em cache — pra pegar mudanças que a Steam faz depois
  * de resolvida uma vez (capa nova, sinopse editada, gênero atualizado, nota do Metacritic mudou etc.).
- * Roda sozinha a cada 24h (ver LastRunScheduler em main/index.ts), sem botão manual.
+ * Sem scheduler automático — só roda quando disparada manualmente (botão "Sobrescrever tudo").
  *
  * Retomável: `getPendingLibraryRefreshAppIds`/`setPendingLibraryRefreshAppIds` guardam quem ainda falta
  * reconferir no ciclo atual — se o app fechar no meio de uma reconferência grande, a próxima execução
- * continua de onde parou em vez de recomeçar do primeiro jogo. Isso só vale dentro do mesmo ciclo
- * interrompido: assim que os pendentes zeram (ciclo completo), a próxima chamada (24h depois) já é um
- * ciclo novo, reconferindo todo mundo de novo.
+ * continua de onde parou em vez de recomeçar do primeiro jogo.
  */
 export class RefreshLibraryMetadata {
   private inFlight: Promise<RefreshLibraryMetadataResult> | null = null
@@ -31,10 +33,10 @@ export class RefreshLibraryMetadata {
     private readonly sessionLogRepository: SessionLogRepository
   ) {}
 
-  execute(): Promise<RefreshLibraryMetadataResult> {
+  execute(scope: RefreshMetadataScope = 'library'): Promise<RefreshLibraryMetadataResult> {
     if (this.inFlight) return this.inFlight
     this.cancelled = false
-    this.inFlight = this.run().finally(() => {
+    this.inFlight = this.run(scope).finally(() => {
       this.inFlight = null
     })
     return this.inFlight
@@ -49,10 +51,17 @@ export class RefreshLibraryMetadata {
     return this.inFlight !== null
   }
 
-  private async run(): Promise<RefreshLibraryMetadataResult> {
-    const ownedGames = this.cacheRepository.getOwnedGames()
-    const candidateAppIds = new Set(ownedGames.map((game) => game.appId))
-    const titleByAppId = new Map(ownedGames.map((game) => [game.appId, game.name]))
+  private async run(scope: RefreshMetadataScope): Promise<RefreshLibraryMetadataResult> {
+    const targetsByAppId = new Map<number, string>()
+    if (scope === 'all') {
+      for (const item of this.cacheRepository.getWishlist()) {
+        targetsByAppId.set(item.appId, item.title)
+      }
+    }
+    for (const game of this.cacheRepository.getOwnedGames()) {
+      targetsByAppId.set(game.appId, game.name)
+    }
+    const candidateAppIds = new Set(targetsByAppId.keys())
 
     const filteredPending = this.cacheRepository
       .getPendingLibraryRefreshAppIds()
@@ -61,11 +70,12 @@ export class RefreshLibraryMetadata {
     const toProcess = isResuming ? filteredPending : [...candidateAppIds]
     this.cacheRepository.setPendingLibraryRefreshAppIds(toProcess)
 
+    const scopeLabel = scope === 'all' ? 'wishlist + biblioteca' : 'biblioteca'
     this.sessionLogRepository.log(
       'info',
       isResuming
-        ? `Retomando reconferência de metadata da biblioteca: ${toProcess.length}/${ownedGames.length} jogo(s) ainda faltam.`
-        : `Reconferindo metadata da Steam pra toda a biblioteca: ${toProcess.length} jogo(s).`
+        ? `Retomando reconferência de metadata (${scopeLabel}): ${toProcess.length}/${targetsByAppId.size} jogo(s) ainda faltam.`
+        : `Reconferindo metadata da Steam (${scopeLabel}): ${toProcess.length} jogo(s).`
     )
 
     let refreshed = 0
@@ -77,13 +87,17 @@ export class RefreshLibraryMetadata {
     for (const appId of toProcess) {
       if (this.cancelled) break
 
-      const title = titleByAppId.get(appId) ?? `AppID ${appId}`
+      const title = targetsByAppId.get(appId) ?? `AppID ${appId}`
       const metadata = await this.metadataRepository.fetchMetadata(appId)
       processed += 1
       if (metadata) {
         this.cacheRepository.setMetadata(metadata)
         refreshed += 1
         synced += syncCachedDealsForAppId(this.cacheRepository, appId, metadata, true)
+        this.sessionLogRepository.log(
+          'success',
+          `Metadata sobrescrita pra "${title}": ${describeMetadata(metadata)}.`
+        )
       } else {
         failed += 1
         this.sessionLogRepository.log('warn', `Não consegui reconferir metadata da Steam pra "${title}".`)
@@ -97,14 +111,14 @@ export class RefreshLibraryMetadata {
     if (this.cancelled) {
       this.sessionLogRepository.log(
         'warn',
-        `Reconferência de metadata da biblioteca cancelada: ${processed}/${toProcess.length} jogo(s) processado(s) (${refreshed} atualizado(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
+        `Reconferência de metadata cancelada: ${processed}/${toProcess.length} jogo(s) processado(s) (${refreshed} atualizado(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
       )
       return { refreshed, failed, synced }
     }
 
     this.sessionLogRepository.log(
       'success',
-      `Reconferência de metadata da biblioteca concluída: ${refreshed}/${toProcess.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
+      `Reconferência de metadata concluída: ${refreshed}/${toProcess.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
     )
     return { refreshed, failed, synced }
   }

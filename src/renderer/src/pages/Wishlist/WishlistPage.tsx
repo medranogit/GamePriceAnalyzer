@@ -22,6 +22,7 @@ import {
   useWishlistPrices
 } from '@renderer/hooks/useWishlist'
 import { useSettings } from '@renderer/hooks/useSettings'
+import { useTimersStatus } from '@renderer/hooks/useQueues'
 import { useSteamSearch } from '@renderer/hooks/useSteamSearch'
 import { useDebouncedValue } from '@renderer/hooks/useDebouncedValue'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
@@ -47,6 +48,10 @@ export function WishlistPage() {
   const removeItem = useRemoveWishlistItem()
   const syncFromSteam = useSyncSteamWishlist()
   const refreshPrices = useWishlistPrices()
+  const { data: timers = [] } = useTimersStatus()
+  // Reflete o scheduler de verdade (main process), não só o mutation local — assim o botão aparece
+  // "rodando" mesmo se a sincronização foi forçada pela tela Fila de Chamadas, não só por aqui.
+  const wishlistSyncRunning = timers.find((timer) => timer.key === 'wishlist')?.running ?? false
 
   const [addSearchTerm, setAddSearchTerm] = useState('')
   const debouncedAddSearchTerm = useDebouncedValue(addSearchTerm, 300)
@@ -160,7 +165,7 @@ export function WishlistPage() {
           >
             <Button
               icon={<CloudSyncOutlined />}
-              loading={syncFromSteam.isPending}
+              loading={syncFromSteam.isPending || wishlistSyncRunning}
               disabled={!settings?.steamId64}
               onClick={() =>
                 syncFromSteam.mutate(undefined, {

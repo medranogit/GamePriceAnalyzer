@@ -33,7 +33,7 @@ import { JsonPriceHistoryRepository } from './infrastructure/storage/JsonPriceHi
 import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository'
 import { JsonPollingStateRepository } from './infrastructure/storage/JsonPollingStateRepository'
 import { JsonSessionLogRepository } from './infrastructure/storage/JsonSessionLogRepository'
-import { SyncSteamLibrary } from './domain/use-cases/SyncSteamLibrary'
+import { SyncLibraryAndResolveNewGames } from './domain/use-cases/SyncLibraryAndResolveNewGames'
 import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
 import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
@@ -45,6 +45,7 @@ import { FetchSingleGameMetadata } from './domain/use-cases/FetchSingleGameMetad
 import { SingleGameFetchProgressTracker } from './domain/SingleGameFetchProgressTracker'
 import { FetchGameAchievements } from './domain/use-cases/FetchGameAchievements'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
+import { QueueActivityTracker } from './domain/QueueActivityTracker'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 
 const startedHidden = process.argv.includes('--hidden')
@@ -150,9 +151,20 @@ async function bootstrap(): Promise<void> {
   const localTrailerCache = new LocalTrailerCache()
   handleVideoProtocol(getLocalMediaRootDir())
   const singleGameFetchProgressTracker = new SingleGameFetchProgressTracker()
+  const ggDealsQueueTracker = new QueueActivityTracker()
+  const steamMetadataQueueTracker = new QueueActivityTracker()
+  const resolveGameLabel = (appId: number): string =>
+    cacheRepository.getOwnedGames().find((g) => g.appId === appId)?.name ??
+    cacheRepository.getWishlist().find((w) => w.appId === appId)?.title ??
+    cacheRepository.getMetadata(appId)?.title ??
+    `AppID ${appId}`
   const metadataRepository = new LocalTrailerCachingGameMetadataRepository(
     new LocalImageCachingGameMetadataRepository(
-      new ThrottledGameMetadataRepository(new SteamStoreMetadataRepositoryImpl()),
+      new ThrottledGameMetadataRepository(
+        new SteamStoreMetadataRepositoryImpl(),
+        steamMetadataQueueTracker,
+        resolveGameLabel
+      ),
       settingsRepository,
       localImageCache,
       singleGameFetchProgressTracker
@@ -165,11 +177,16 @@ async function bootstrap(): Promise<void> {
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()
 
-  const ggDealsClient = new GGDealsApiClient(() => secretsStore.get('ggDealsApiKey'), sessionLogRepository)
+  const ggDealsClient = new GGDealsApiClient(
+    () => secretsStore.get('ggDealsApiKey'),
+    sessionLogRepository,
+    ggDealsQueueTracker
+  )
   const dealsRepository = new DealsRepositoryImpl(ggDealsClient)
 
-  const syncSteamLibrary = new SyncSteamLibrary(
+  const syncLibraryAndResolveNewGames = new SyncLibraryAndResolveNewGames(
     steamLibraryRepository,
+    metadataRepository,
     cacheRepository,
     historyRepository,
     sessionLogRepository
@@ -231,7 +248,6 @@ async function bootstrap(): Promise<void> {
   const scheduler = new PollingScheduler(
     async () => {
       await checkDealAlerts.execute()
-      await resolveMissingMetadata.execute('library')
     },
     pollingStateRepository,
     sessionLogRepository
@@ -263,23 +279,37 @@ async function bootstrap(): Promise<void> {
   )
   wishlistSyncScheduler.start()
 
-  // Reconfere a metadata de TODA a biblioteca a cada 24h — diferente de ResolveMissingMetadata (que só
-  // preenche o que falta), essa pega mudanças em quem já tinha tudo cacheado (capa nova, sinopse
-  // editada, gênero atualizado etc.).
-  const libraryMetadataRefreshStateRepository = new JsonPollingStateRepository(
-    'library-metadata-refresh-state.json'
-  )
-  const LIBRARY_METADATA_REFRESH_INTERVAL_MINUTES = 24 * 60
-  const libraryMetadataRefreshScheduler = new LastRunScheduler(
-    'Reconferência de metadata da biblioteca',
+  // Sincroniza a lista de jogos possuídos e busca metadata dos novos — intervalo configurável em
+  // Configurações. Também roda na hora (e reagenda a partir daí) quando o botão "Sincronizar com a
+  // Steam" de Minha Biblioteca é usado, via `librarySyncScheduler.runNow()`.
+  const librarySyncStateRepository = new JsonPollingStateRepository('library-sync-state.json')
+  const librarySyncScheduler = new LastRunScheduler(
+    'Sincronização da Biblioteca',
     async () => {
-      await refreshLibraryMetadata.execute()
+      const steamId64 = settingsRepository.get().steamId64
+      if (!steamId64) return
+      await syncLibraryAndResolveNewGames.execute(steamId64)
     },
-    libraryMetadataRefreshStateRepository,
+    librarySyncStateRepository,
     sessionLogRepository,
-    LIBRARY_METADATA_REFRESH_INTERVAL_MINUTES
+    settingsRepository.get().polling.librarySyncIntervalMinutes
   )
-  libraryMetadataRefreshScheduler.start()
+  librarySyncScheduler.start()
+
+  // Preenche metadata faltando (wishlist + biblioteca) — próprio timer, independente do ciclo de
+  // ofertas. A reconferência incondicional (mesmo quem já tá completo) só roda manualmente, via o botão
+  // "Sobrescrever tudo" em Configurações (ver metadataRefreshAll no registerIpcHandlers).
+  const metadataBackfillStateRepository = new JsonPollingStateRepository('metadata-backfill-state.json')
+  const metadataBackfillScheduler = new LastRunScheduler(
+    'Backfill de metadata faltando',
+    async () => {
+      await resolveMissingMetadata.execute('all')
+    },
+    metadataBackfillStateRepository,
+    sessionLogRepository,
+    settingsRepository.get().polling.metadataBackfillIntervalMinutes
+  )
+  metadataBackfillScheduler.start()
 
   // Ping periódico no Log da Sessão com quanto falta pra próxima busca/sync,
   // pra acompanhar sem precisar esperar o próprio evento acontecer.
@@ -287,18 +317,18 @@ async function bootstrap(): Promise<void> {
   setInterval(() => {
     scheduler.logStatus()
     wishlistSyncScheduler.logStatus()
-    libraryMetadataRefreshScheduler.logStatus()
+    librarySyncScheduler.logStatus()
+    metadataBackfillScheduler.logStatus()
   }, STATUS_PING_INTERVAL_MS)
 
   registerIpcHandlers({
     settingsRepository,
     cacheRepository,
     historyRepository,
-    syncSteamLibrary,
+    librarySyncScheduler,
     addWishlistItem,
     removeWishlistItem,
     refreshWishlistPrices,
-    syncSteamWishlist,
     steamSearchRepository,
     scheduler,
     secretsStore,
@@ -306,6 +336,10 @@ async function bootstrap(): Promise<void> {
     notificationService,
     notifiedDealsRepository,
     resolveMissingMetadata,
+    refreshLibraryMetadata,
+    metadataBackfillScheduler,
+    ggDealsQueueTracker,
+    steamMetadataQueueTracker,
     fetchSingleGameMetadata,
     fetchGameAchievements,
     sessionLogRepository,

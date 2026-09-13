@@ -33,10 +33,20 @@ export class LastRunScheduler {
     }
   }
 
+  /** Muda o intervalo e reseta a contagem a partir de agora (não fica com um resto do intervalo antigo
+   * baseado no último `lastRunAt`) — é o que o usuário espera ao trocar o valor numa tela. */
   setIntervalMinutes(intervalMinutes: number): void {
     if (this.intervalMinutes === intervalMinutes && this.timer) return
     this.intervalMinutes = intervalMinutes
+    this.lastRunRepository.setLastRunAt(new Date().toISOString())
     this.scheduleNext()
+  }
+
+  /** Só define o intervalo, sem resetar `lastRunAt` nem (re)agendar — usado só na montagem inicial
+   * (`PollingScheduler.start`), pra respeitar o que já rodou antes (não disparar de novo só porque o
+   * app abriu). Pra mudança em runtime (usuário trocando o valor numa tela), use `setIntervalMinutes`. */
+  setInitialIntervalMinutes(intervalMinutes: number): void {
+    this.intervalMinutes = intervalMinutes
   }
 
   /** Roda agora, fora do agendamento, e reagenda a próxima automática a partir deste momento. */
@@ -48,6 +58,18 @@ export class LastRunScheduler {
 
   isRunning(): boolean {
     return this.inFlight !== null
+  }
+
+  getLabel(): string {
+    return this.label
+  }
+
+  getLastRunAt(): string | null {
+    return this.lastRunRepository.getLastRunAt()
+  }
+
+  getIntervalMinutes(): number {
+    return this.intervalMinutes
   }
 
   /** Registra que a tarefa rodou por fora (ex: botão manual numa tela) e reagenda a partir daí. */

@@ -11,6 +11,7 @@ import { GameDetailPage } from '@renderer/pages/GameDetail/GameDetailPage'
 import { LibraryGameDetailPage } from '@renderer/pages/LibraryGameDetail/LibraryGameDetailPage'
 import { HistoryPage } from '@renderer/pages/History/HistoryPage'
 import { LogSessaoPage } from '@renderer/pages/LogSessao/LogSessaoPage'
+import { CallQueuePage } from '@renderer/pages/CallQueue/CallQueuePage'
 import { SettingsPage } from '@renderer/pages/Settings/SettingsPage'
 import { useDealsFoundListener, useDealsBatchFoundListener } from '@renderer/hooks/useDeals'
 import { playAlertSound } from '@renderer/lib/playAlertSound'
@@ -131,6 +132,7 @@ export function App() {
           <Route path="game/:appId" element={<GameDetailPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="log-sessao" element={<LogSessaoPage />} />
+          <Route path="fila-de-chamadas" element={<CallQueuePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

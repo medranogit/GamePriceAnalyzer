@@ -25,4 +25,8 @@ export interface GameDeal {
   trailers: GameTrailer[]
   /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
   firstSeenAt: string
+  /** Quando o preço foi realmente reconferido no GG.deals pela última vez — diferente de `firstSeenAt`
+   * (que não muda depois da primeira vez). Ausente em cache salvo antes desse campo existir. Usado pra
+   * ordenar Ofertas com quem foi atualizado mais recentemente primeiro. */
+  priceUpdatedAt?: string
 }

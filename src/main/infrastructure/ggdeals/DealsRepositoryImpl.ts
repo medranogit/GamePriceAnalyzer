@@ -1,5 +1,5 @@
 import type { GameDeal } from '@shared/types'
-import type { DealsRepository } from '../../domain/repositories/DealsRepository'
+import type { DealsPricesResult, DealsRepository } from '../../domain/repositories/DealsRepository'
 import type { GGDealsApiClient } from './GGDealsApiClient'
 
 export class DealsRepositoryImpl implements DealsRepository {
@@ -8,7 +8,7 @@ export class DealsRepositoryImpl implements DealsRepository {
   async fetchDealsBySteamAppIds(
     appIds: number[],
     onBatch?: (deals: GameDeal[]) => Promise<void> | void
-  ): Promise<GameDeal[]> {
+  ): Promise<DealsPricesResult> {
     return this.client.getPricesBySteamAppIds(appIds, onBatch)
   }
 }

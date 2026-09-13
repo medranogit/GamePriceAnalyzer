@@ -29,8 +29,6 @@ import styled from 'styled-components'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSecretsStatus, useSetGGDealsApiKey, useSetSteamApiKey } from '@renderer/hooks/useSecrets'
-import { METADATA_RESOLVE_STATUS_KEY, useMetadataResolveStatus } from '@renderer/hooks/useMetadata'
-import { POLLING_STATUS_KEY, usePollingStatus } from '@renderer/hooks/usePollingStatus'
 import { dismissAllInAppNotifications } from '@renderer/lib/notificationApi'
 
 const { Title, Text } = Typography
@@ -56,13 +54,10 @@ export function SettingsPage() {
   const { data: secretsStatus } = useSecretsStatus()
   const setSteamApiKey = useSetSteamApiKey()
   const setGGDealsApiKey = useSetGGDealsApiKey()
+  const [overwritingAll, setOverwritingAll] = useState(false)
   const [testingNotifications, setTestingNotifications] = useState(false)
   const [clearingNotifications, setClearingNotifications] = useState(false)
   const [dismissingNotifications, setDismissingNotifications] = useState(false)
-  const { data: pollingStatus } = usePollingStatus()
-  const checkingDealsNow = pollingStatus?.running ?? false
-  const { data: resolveStatus } = useMetadataResolveStatus()
-  const resolvingMetadata = resolveStatus?.resolving ?? false
 
   const [steamId64Input, setSteamId64Input] = useState('')
   const [steamApiKeyInput, setSteamApiKeyInput] = useState('')
@@ -184,101 +179,38 @@ export function SettingsPage() {
           }
         >
           <Form layout="vertical">
-            <Form.Item label="Intervalo de busca de ofertas (minutos)">
-              <InputNumber
-                min={5}
-                max={240}
-                value={settings.polling.intervalMinutes}
-                onChange={(value) =>
-                  value && updateSettings.mutate({ polling: { ...settings.polling, intervalMinutes: value } })
-                }
-              />
-            </Form.Item>
-
-            <Form.Item label="Intervalo de atualização da wishlist (minutos)">
-              <InputNumber
-                min={5}
-                max={240}
-                value={settings.polling.wishlistSyncIntervalMinutes}
-                onChange={(value) =>
-                  value &&
-                  updateSettings.mutate({
-                    polling: { ...settings.polling, wishlistSyncIntervalMinutes: value }
-                  })
-                }
-              />
-            </Form.Item>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              Os intervalos de cada timer (Ofertas, Wishlist, Biblioteca, Backfill) e os botões pra forçar
+              cada busca na hora ficam na tela <strong>Fila de Chamadas</strong>, junto com o status ao vivo
+              de cada um.
+            </Text>
 
             <Form.Item
-              label="Procurar ofertas agora"
-              extra="Roda uma busca imediata na wishlist inteira, sem esperar o próximo ciclo automático."
+              label="Sobrescrever tudo"
+              extra="Refaz a busca da Steam pra TODO mundo (biblioteca + ofertas), mesmo quem já tem metadata completa — útil pra pegar mudanças (capa nova, sinopse editada). Diferente do backfill (que só preenche o que falta), essa sempre busca de novo. Também reseta os timers de sincronização da biblioteca e de backfill, pra não rodarem de novo em cima dessa busca."
             >
               <Button
                 icon={<SyncOutlined />}
-                loading={checkingDealsNow}
+                loading={overwritingAll}
                 onClick={async () => {
-                  queryClient.setQueryData(POLLING_STATUS_KEY, (current: typeof pollingStatus) => ({
-                    ...current,
-                    running: true
-                  }))
+                  setOverwritingAll(true)
                   try {
-                    await window.api.polling.triggerNow()
+                    const result = await window.api.metadata.refreshAll()
                     void queryClient.invalidateQueries({ queryKey: ['deals'] })
                     void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
-                    message.success('Busca de ofertas concluída.')
+                    void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
+                    message.success(
+                      `Metadata sobrescrita: ${result.refreshed} jogo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
+                    )
                   } catch (error) {
                     showError(error)
                   } finally {
-                    void queryClient.invalidateQueries({ queryKey: POLLING_STATUS_KEY })
+                    setOverwritingAll(false)
                   }
                 }}
               >
-                Procurar ofertas agora
+                Sobrescrever tudo
               </Button>
-            </Form.Item>
-
-            <Form.Item
-              label="Buscar metadados da Steam agora"
-              extra="Resolve capa, gênero, sinopse, trailer etc. (via Steam) de quem ainda não tem isso em cache — tanto na wishlist quanto na sua biblioteca. Útil pra preencher informações faltando sem esperar o ciclo automático. Respeita o rate limit da Steam (1 jogo a cada 1,5s), então pode demorar se faltar muito."
-            >
-              <Space>
-                <Button
-                  icon={<PictureOutlined />}
-                  loading={resolvingMetadata}
-                  onClick={async () => {
-                    queryClient.setQueryData(METADATA_RESOLVE_STATUS_KEY, { resolving: true })
-                    try {
-                      const result = await window.api.metadata.resolveMissing()
-                      void queryClient.invalidateQueries({ queryKey: ['deals'] })
-                      void queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
-                      void queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
-                      message.success(
-                        `Metadata resolvida: ${result.resolved} jogo(s) novo(s) (${result.failed} falha(s)). ${result.synced} oferta(s) sincronizada(s).`
-                      )
-                    } catch (error) {
-                      showError(error)
-                    } finally {
-                      void queryClient.invalidateQueries({ queryKey: METADATA_RESOLVE_STATUS_KEY })
-                    }
-                  }}
-                >
-                  Buscar metadados da Steam agora
-                </Button>
-                {resolvingMetadata && (
-                  <Button
-                    danger
-                    onClick={async () => {
-                      try {
-                        await window.api.metadata.cancelResolve()
-                      } catch (error) {
-                        showError(error)
-                      }
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                )}
-              </Space>
             </Form.Item>
           </Form>
         </Card>

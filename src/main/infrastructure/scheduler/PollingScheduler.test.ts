@@ -139,4 +139,40 @@ describe('PollingScheduler', () => {
 
     expect(onTick).toHaveBeenCalledTimes(2)
   })
+
+  it('expõe label, último timestamp e intervalo pra tela de status', async () => {
+    const onTick = vi.fn().mockResolvedValue(undefined)
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(null),
+      makeFakeSessionLogRepository()
+    )
+
+    scheduler.start(65)
+    expect(scheduler.getLabel()).toBe('Busca de ofertas')
+    expect(scheduler.getIntervalMinutes()).toBe(65)
+    expect(scheduler.getLastRunAt()).toBeNull()
+
+    await scheduler.runNow()
+    expect(scheduler.getLastRunAt()).not.toBeNull()
+  })
+
+  it('updateInterval (mudança em runtime) reseta a contagem, diferente de start (montagem inicial)', async () => {
+    const fortyMinutesAgo = new Date(Date.now() - 40 * 60 * 1000).toISOString()
+    const onTick = vi.fn().mockResolvedValue(undefined)
+    const scheduler = new PollingScheduler(
+      onTick,
+      makeFakePollingStateRepository(fortyMinutesAgo),
+      makeFakeSessionLogRepository()
+    )
+
+    scheduler.start(60) // ~20min faltando pro tick, respeitando o que já tinha rodado antes
+    scheduler.updateInterval(30) // se não resetasse, os 40min decorridos já estourariam os 30min novos
+
+    await vi.advanceTimersByTimeAsync(29 * 60 * 1000)
+    expect(onTick).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    expect(onTick).toHaveBeenCalledTimes(1)
+  })
 })

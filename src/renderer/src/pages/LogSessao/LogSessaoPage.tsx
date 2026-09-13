@@ -9,16 +9,10 @@ import {
   useSessionLogEntries,
   useSessionLogSessions
 } from '@renderer/hooks/useSessionLog'
-import type { SessionLogLevel, SessionLogSession } from '@shared/types'
+import { SessionLogLines } from '@renderer/components/SessionLogLines/SessionLogLines'
+import type { SessionLogSession } from '@shared/types'
 
-const { Title, Text } = Typography
-
-const LEVEL_COLORS: Record<SessionLogLevel, string> = {
-  info: '#c9d1d9',
-  success: '#3fb950',
-  warn: '#d4a72c',
-  error: '#f85149'
-}
+const { Title } = Typography
 
 const Layout = styled.div`
   display: flex;
@@ -107,12 +101,6 @@ const LogPanel = styled.div`
   line-height: 1.7;
 `
 
-const LogLine = styled.div<{ $level: SessionLogLevel }>`
-  color: ${({ $level }) => LEVEL_COLORS[$level]};
-  white-space: pre-wrap;
-  word-break: break-word;
-`
-
 function formatSessionLabel(session: SessionLogSession): string {
   return dayjs(session.startedAt).format('DD/MM/YY - HH:mm')
 }
@@ -186,15 +174,7 @@ export function LogSessaoPage() {
           </SessionList>
 
           <LogPanel>
-            {entriesNewestFirst.length === 0 ? (
-              <Text type="secondary">Sem entradas ainda.</Text>
-            ) : (
-              entriesNewestFirst.map((entry, index) => (
-                <LogLine key={index} $level={entry.level}>
-                  [{dayjs(entry.timestamp).format('HH:mm:ss')}] {entry.message}
-                </LogLine>
-              ))
-            )}
+            <SessionLogLines entries={entriesNewestFirst} />
           </LogPanel>
         </Layout>
       )}

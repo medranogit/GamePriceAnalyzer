@@ -21,8 +21,11 @@ export class PollingScheduler {
     )
   }
 
+  /** Chamado só na montagem inicial do app — não reseta `lastRunAt` (não deve disparar de novo só
+   * porque o app abriu). Pra mudança em runtime, ver `updateInterval`. */
   start(intervalMinutes: number): void {
-    this.scheduler.setIntervalMinutes(intervalMinutes)
+    this.scheduler.setInitialIntervalMinutes(intervalMinutes)
+    this.scheduler.start()
   }
 
   updateInterval(intervalMinutes: number): void {
@@ -39,5 +42,17 @@ export class PollingScheduler {
 
   logStatus(): void {
     this.scheduler.logStatus()
+  }
+
+  getLabel(): string {
+    return this.scheduler.getLabel()
+  }
+
+  getLastRunAt(): string | null {
+    return this.scheduler.getLastRunAt()
+  }
+
+  getIntervalMinutes(): number {
+    return this.scheduler.getIntervalMinutes()
   }
 }

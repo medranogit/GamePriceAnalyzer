@@ -1,6 +1,7 @@
 import { Layout, Menu } from 'antd'
 import {
   AppstoreOutlined,
+  ApiOutlined,
   CodeOutlined,
   DatabaseOutlined,
   HeartOutlined,
@@ -58,6 +59,11 @@ const menuItems = [
   { key: '/wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Wishlist</Link> },
   { key: '/history', icon: <HistoryOutlined />, label: <Link to="/history">Histórico</Link> },
   { key: '/log-sessao', icon: <CodeOutlined />, label: <Link to="/log-sessao">Log da Sessão</Link> },
+  {
+    key: '/fila-de-chamadas',
+    icon: <ApiOutlined />,
+    label: <Link to="/fila-de-chamadas">Fila de Chamadas</Link>
+  },
   { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> }
 ]
 

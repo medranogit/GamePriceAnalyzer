@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Empty, Row, Col, Space, Spin, Tag, Typography, Pagination } from 'antd'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
-import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
 import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
@@ -54,8 +53,11 @@ export function DashboardPage() {
         .filter((deal) => !filters.onlyHistoricalLow || isAtOrBelowHistoricalLow(deal))
     : []
 
+  // Quem teve o preço reconferido mais recentemente (priceUpdatedAt) aparece primeiro — cobre tanto
+  // oferta nova (primeira vez que o preço é buscado) quanto oferta antiga que acabou de ser atualizada.
+  // Cache salvo antes desse campo existir cai pro firstSeenAt como aproximação.
   const sortedDeals = [...filteredDeals].sort((a, b) =>
-    (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? '')
+    (b.priceUpdatedAt ?? b.firstSeenAt ?? '').localeCompare(a.priceUpdatedAt ?? a.firstSeenAt ?? '')
   )
 
   useEffect(() => {
@@ -89,7 +91,6 @@ export function DashboardPage() {
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}
         </Title>
         <Space size="middle">
-          <PollingStatus />
           <RefreshCountdown dataUpdatedAt={dataUpdatedAt} />
         </Space>
       </div>
