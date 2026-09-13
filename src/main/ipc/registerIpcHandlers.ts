@@ -5,9 +5,7 @@ import { IPC_CHANNELS } from '@shared/ipc/channels'
 import { getGameMediaDir } from '../infrastructure/storage/localMediaPaths'
 import type { SettingsRepository } from '../domain/repositories/SettingsRepository'
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
-import type { AddWishlistItem } from '../domain/use-cases/AddWishlistItem'
 import type { RemoveWishlistItem } from '../domain/use-cases/RemoveWishlistItem'
-import type { SteamSearchRepository } from '../domain/repositories/SteamSearchRepository'
 import type { PollingScheduler } from '../infrastructure/scheduler/PollingScheduler'
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
 import type { AutoLaunchService } from '../infrastructure/autostart/AutoLaunchService'
@@ -40,9 +38,7 @@ interface Dependencies {
   metadataBackfillScheduler: LastRunScheduler
   ggDealsQueueTracker: QueueActivityTracker
   steamMetadataQueueTracker: QueueActivityTracker
-  addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
-  steamSearchRepository: SteamSearchRepository
   scheduler: PollingScheduler
   secretsStore: SecretsStore
   autoLaunchService: AutoLaunchService
@@ -94,8 +90,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.wishlistGetCached, () => deps.cacheRepository.getWishlist())
 
-  ipcMain.handle(IPC_CHANNELS.wishlistAdd, (_event, appId: number) => deps.addWishlistItem.execute(appId))
-
   ipcMain.handle(IPC_CHANNELS.wishlistRemove, (_event, appId: number) =>
     deps.removeWishlistItem.execute(appId)
   )
@@ -110,10 +104,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
     await deps.wishlistSyncScheduler.runNow()
     return deps.cacheRepository.getWishlist()
   })
-
-  ipcMain.handle(IPC_CHANNELS.steamSearchGames, (_event, query: string) =>
-    deps.steamSearchRepository.searchGames(query)
-  )
 
   ipcMain.handle(IPC_CHANNELS.dealsGetCached, () => deps.cacheRepository.getDeals())
 

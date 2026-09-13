@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     intervalMinutes: 60,
     wishlistSyncIntervalMinutes: 120,
     librarySyncIntervalMinutes: 30,
-    metadataBackfillIntervalMinutes: 60,
+    metadataBackfillIntervalMinutes: 20,
     quietHoursStart: null,
     quietHoursEnd: null,
     notifyMinDiscountPercent: 50,

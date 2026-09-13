@@ -9,16 +9,6 @@ export function useWishlist() {
   })
 }
 
-export function useAddWishlistItem() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (appId: number) => window.api.wishlist.add(appId),
-    onSuccess: (items) => {
-      queryClient.setQueryData(WISHLIST_KEY, items)
-    }
-  })
-}
-
 export function useRemoveWishlistItem() {
   const queryClient = useQueryClient()
   return useMutation({

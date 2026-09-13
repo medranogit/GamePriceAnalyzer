@@ -1,15 +1,5 @@
 import { useState } from 'react'
-import {
-  Avatar,
-  Button,
-  Input,
-  Popconfirm,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message
-} from 'antd'
+import { Button, Input, Popconfirm, Table, Tag, Tooltip, Typography, message } from 'antd'
 import { CloudSyncOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { useRemoveWishlistItem, useSyncSteamWishlist, useWishlist } from '@renderer/hooks/useWishlist'
 import { useSettings } from '@renderer/hooks/useSettings'
@@ -19,10 +9,6 @@ import { formatDate } from '@renderer/lib/formatters'
 import type { WishlistItem } from '@shared/types'
 
 const { Title } = Typography
-
-function steamCapsuleUrl(appId: number): string {
-  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_184x69.jpg`
-}
 
 export function WishlistPage() {
   const { data: settings } = useSettings()
@@ -39,14 +25,6 @@ export function WishlistPage() {
   const rows = wishlist.filter((item) => matchesSearchTokens(item.title, filterTerm))
 
   const columns = [
-    {
-      title: '',
-      key: 'cover',
-      width: 72,
-      render: (_: unknown, item: WishlistItem) => (
-        <Avatar shape="square" size={48} src={steamCapsuleUrl(item.appId)} />
-      )
-    },
     {
       title: 'Jogo',
       key: 'title',
@@ -122,11 +100,12 @@ export function WishlistPage() {
       />
 
       <Table<WishlistItem>
+        size="small"
         rowKey={(item) => item.appId}
         loading={isLoading}
         dataSource={rows}
         columns={columns}
-        pagination={{ pageSize: 15 }}
+        pagination={{ pageSize: 20 }}
       />
     </div>
   )

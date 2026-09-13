@@ -19,7 +19,6 @@ import { LocalTrailerCache } from './infrastructure/storage/LocalTrailerCache'
 import { getLocalMediaRootDir } from './infrastructure/storage/localMediaPaths'
 import { registerImageProtocolPrivileges, handleImageProtocol } from './infrastructure/protocol/imageProtocol'
 import { registerVideoProtocolPrivileges, handleVideoProtocol } from './infrastructure/protocol/videoProtocol'
-import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
 import { SteamWishlistRepositoryImpl } from './infrastructure/steam/SteamWishlistRepositoryImpl'
 import { SteamAchievementsRepositoryImpl } from './infrastructure/steam/SteamAchievementsRepositoryImpl'
 import { GGDealsApiClient } from './infrastructure/ggdeals/GGDealsApiClient'
@@ -34,7 +33,6 @@ import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepos
 import { JsonPollingStateRepository } from './infrastructure/storage/JsonPollingStateRepository'
 import { JsonSessionLogRepository } from './infrastructure/storage/JsonSessionLogRepository'
 import { SyncLibraryAndResolveNewGames } from './domain/use-cases/SyncLibraryAndResolveNewGames'
-import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
@@ -172,7 +170,6 @@ async function bootstrap(): Promise<void> {
     localTrailerCache,
     singleGameFetchProgressTracker
   )
-  const steamSearchRepository = new SteamSearchRepositoryImpl()
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()
 
@@ -190,7 +187,6 @@ async function bootstrap(): Promise<void> {
     historyRepository,
     sessionLogRepository
   )
-  const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository, historyRepository)
   const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
   const syncSteamWishlist = new SyncSteamWishlist(
     steamWishlistRepository,
@@ -318,9 +314,7 @@ async function bootstrap(): Promise<void> {
     cacheRepository,
     historyRepository,
     librarySyncScheduler,
-    addWishlistItem,
     removeWishlistItem,
-    steamSearchRepository,
     scheduler,
     secretsStore,
     autoLaunchService,

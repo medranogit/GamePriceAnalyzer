@@ -9,7 +9,6 @@ import type {
   QueueEntry,
   SessionLogEntry,
   SessionLogSession,
-  SteamSearchResult,
   TimerStatus,
   WishlistItem
 } from '@shared/types'
@@ -27,14 +26,9 @@ const api = {
   },
   wishlist: {
     getCached: (): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistGetCached),
-    add: (appId: number): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistAdd, appId),
     remove: (appId: number): Promise<WishlistItem[]> =>
       ipcRenderer.invoke(IPC_CHANNELS.wishlistRemove, appId),
     syncFromSteam: (): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistSyncFromSteam)
-  },
-  steam: {
-    searchGames: (query: string): Promise<SteamSearchResult[]> =>
-      ipcRenderer.invoke(IPC_CHANNELS.steamSearchGames, query)
   },
   deals: {
     getCached: (): Promise<GameDeal[]> => ipcRenderer.invoke(IPC_CHANNELS.dealsGetCached),
