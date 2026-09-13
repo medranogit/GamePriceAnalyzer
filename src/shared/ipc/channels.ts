@@ -6,7 +6,6 @@ export const IPC_CHANNELS = {
   wishlistGetCached: 'wishlist:getCached',
   wishlistAdd: 'wishlist:add',
   wishlistRemove: 'wishlist:remove',
-  wishlistRefreshPrices: 'wishlist:refreshPrices',
   wishlistSyncFromSteam: 'wishlist:syncFromSteam',
   steamSearchGames: 'steam:searchGames',
   historyGetEvents: 'history:getEvents',

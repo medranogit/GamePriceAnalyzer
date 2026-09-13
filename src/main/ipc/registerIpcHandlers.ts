@@ -7,7 +7,6 @@ import type { SettingsRepository } from '../domain/repositories/SettingsReposito
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
 import type { AddWishlistItem } from '../domain/use-cases/AddWishlistItem'
 import type { RemoveWishlistItem } from '../domain/use-cases/RemoveWishlistItem'
-import type { RefreshWishlistPrices } from '../domain/use-cases/RefreshWishlistPrices'
 import type { SteamSearchRepository } from '../domain/repositories/SteamSearchRepository'
 import type { PollingScheduler } from '../infrastructure/scheduler/PollingScheduler'
 import type { SecretsStore } from '../infrastructure/secrets/SecretsStore'
@@ -43,7 +42,6 @@ interface Dependencies {
   steamMetadataQueueTracker: QueueActivityTracker
   addWishlistItem: AddWishlistItem
   removeWishlistItem: RemoveWishlistItem
-  refreshWishlistPrices: RefreshWishlistPrices
   steamSearchRepository: SteamSearchRepository
   scheduler: PollingScheduler
   secretsStore: SecretsStore
@@ -101,8 +99,6 @@ export function registerIpcHandlers(deps: Dependencies): void {
   ipcMain.handle(IPC_CHANNELS.wishlistRemove, (_event, appId: number) =>
     deps.removeWishlistItem.execute(appId)
   )
-
-  ipcMain.handle(IPC_CHANNELS.wishlistRefreshPrices, () => deps.refreshWishlistPrices.execute())
 
   ipcMain.handle(IPC_CHANNELS.wishlistSyncFromSteam, async () => {
     const settings = deps.settingsRepository.get()

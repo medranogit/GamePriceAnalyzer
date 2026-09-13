@@ -54,7 +54,6 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
     steamMetadataQueueTracker: { getSnapshot: () => [] } as never,
     addWishlistItem: { execute: noop } as never,
     removeWishlistItem: { execute: noop } as never,
-    refreshWishlistPrices: { execute: noop } as never,
     steamSearchRepository: { searchGames: noop as never },
     scheduler: { runNow: noop, updateInterval: noop, start: noop, logStatus: noop } as never,
     secretsStore: { get: () => null, set: noop } as never,

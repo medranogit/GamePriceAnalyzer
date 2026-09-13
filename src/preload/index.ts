@@ -11,8 +11,7 @@ import type {
   SessionLogSession,
   SteamSearchResult,
   TimerStatus,
-  WishlistItem,
-  WishlistPriceInfo
+  WishlistItem
 } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
 
@@ -31,7 +30,6 @@ const api = {
     add: (appId: number): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistAdd, appId),
     remove: (appId: number): Promise<WishlistItem[]> =>
       ipcRenderer.invoke(IPC_CHANNELS.wishlistRemove, appId),
-    refreshPrices: (): Promise<WishlistPriceInfo[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistRefreshPrices),
     syncFromSteam: (): Promise<WishlistItem[]> => ipcRenderer.invoke(IPC_CHANNELS.wishlistSyncFromSteam)
   },
   steam: {

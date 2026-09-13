@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 const WISHLIST_KEY = ['wishlist']
-const WISHLIST_PRICES_KEY = ['wishlist-prices']
 
 export function useWishlist() {
   return useQuery({
@@ -36,17 +35,6 @@ export function useSyncSteamWishlist() {
     mutationFn: () => window.api.wishlist.syncFromSteam(),
     onSuccess: (items) => {
       queryClient.setQueryData(WISHLIST_KEY, items)
-    }
-  })
-}
-
-export function useWishlistPrices() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: () => window.api.wishlist.refreshPrices(),
-    onSuccess: (prices) => {
-      queryClient.setQueryData(WISHLIST_PRICES_KEY, prices)
-      queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
     }
   })
 }

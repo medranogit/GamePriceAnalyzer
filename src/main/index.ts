@@ -36,7 +36,6 @@ import { JsonSessionLogRepository } from './infrastructure/storage/JsonSessionLo
 import { SyncLibraryAndResolveNewGames } from './domain/use-cases/SyncLibraryAndResolveNewGames'
 import { AddWishlistItem } from './domain/use-cases/AddWishlistItem'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
-import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
@@ -193,13 +192,6 @@ async function bootstrap(): Promise<void> {
   )
   const addWishlistItem = new AddWishlistItem(metadataRepository, cacheRepository, historyRepository)
   const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
-  const refreshWishlistPrices = new RefreshWishlistPrices(
-    dealsRepository,
-    metadataRepository,
-    priceHistoryRepository,
-    cacheRepository,
-    sessionLogRepository
-  )
   const syncSteamWishlist = new SyncSteamWishlist(
     steamWishlistRepository,
     metadataRepository,
@@ -328,7 +320,6 @@ async function bootstrap(): Promise<void> {
     librarySyncScheduler,
     addWishlistItem,
     removeWishlistItem,
-    refreshWishlistPrices,
     steamSearchRepository,
     scheduler,
     secretsStore,
