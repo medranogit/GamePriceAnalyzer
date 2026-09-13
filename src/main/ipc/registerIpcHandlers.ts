@@ -22,6 +22,7 @@ import type {
   ResolveMissingMetadata,
   ResolveMissingMetadataScope
 } from '../domain/use-cases/ResolveMissingMetadata'
+import type { FetchSingleGameMetadata } from '../domain/use-cases/FetchSingleGameMetadata'
 import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchievements'
 
 interface Dependencies {
@@ -31,6 +32,7 @@ interface Dependencies {
   notificationService: NotificationService
   notifiedDealsRepository: NotifiedDealsRepository
   resolveMissingMetadata: ResolveMissingMetadata
+  fetchSingleGameMetadata: FetchSingleGameMetadata
   fetchGameAchievements: FetchGameAchievements
   syncSteamLibrary: SyncSteamLibrary
   addWishlistItem: AddWishlistItem
@@ -196,6 +198,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
   ipcMain.handle(IPC_CHANNELS.metadataResolveStatus, () => ({
     resolving: deps.resolveMissingMetadata.isResolving()
   }))
+
+  ipcMain.handle(IPC_CHANNELS.metadataResolveOne, (_event, appId: number) =>
+    deps.fetchSingleGameMetadata.execute(appId)
+  )
 
   ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
 

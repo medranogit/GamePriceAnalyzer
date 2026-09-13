@@ -28,7 +28,27 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
     expect(result?.trailerUrl).toBeNull()
   })
 
-  it('não quebra (e fica sem trailer) quando o vídeo em destaque só tem webm, sem mp4 — regressão real do appdetails', async () => {
+  it('usa o manifest HLS quando o vídeo em destaque não tem mp4 (caso atual da Steam, que parou de devolver mp4 pra maioria dos jogos)', async () => {
+    vi.mocked(fetchWithRetry).mockResolvedValueOnce(
+      makeResponse({
+        '346110': {
+          success: true,
+          data: {
+            name: 'ARK: Survival Evolved',
+            genres: [],
+            movies: [{ id: 1, highlight: true, hls_h264: 'https://video.example.com/trailer.m3u8' }]
+          }
+        }
+      })
+    )
+    const repository = new SteamStoreMetadataRepositoryImpl()
+
+    const result = await repository.fetchMetadata(346110)
+
+    expect(result?.trailerUrl).toBe('https://video.example.com/trailer.m3u8')
+  })
+
+  it('não quebra (e fica sem trailer) quando o vídeo em destaque só tem webm, sem mp4 nem hls — regressão real do appdetails', async () => {
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(
       makeResponse({
         '2280': {

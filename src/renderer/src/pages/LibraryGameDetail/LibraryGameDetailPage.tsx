@@ -1,9 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Empty, Progress, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, ClockCircleOutlined, ExportOutlined, TrophyOutlined } from '@ant-design/icons'
+import { Button, Empty, message, Progress, Space, Tooltip, Typography } from 'antd'
+import {
+  ArrowLeftOutlined,
+  ClockCircleOutlined,
+  ExportOutlined,
+  SyncOutlined,
+  TrophyOutlined
+} from '@ant-design/icons'
 import styled from 'styled-components'
 import { useLibrary } from '@renderer/hooks/useLibrary'
-import { useMetadataCache, useGameAchievements } from '@renderer/hooks/useMetadata'
+import { useGameAchievements, useMetadataCache, useResolveGameMetadata } from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatDate } from '@renderer/lib/formatters'
 
@@ -112,6 +118,7 @@ export function LibraryGameDetailPage() {
   const { data: games = [] } = useLibrary()
   const { data: metadataList = [] } = useMetadataCache()
   const { data: achievements } = useGameAchievements(numericAppId)
+  const resolveMetadata = useResolveGameMetadata()
 
   const game = games.find((g) => String(g.appId) === appId)
   const metadata = metadataList.find((m) => String(m.appId) === appId)
@@ -130,6 +137,21 @@ export function LibraryGameDetailPage() {
   const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}/`
   const hours = game.playtimeForeverMinutes / 60
 
+  const handleResolveMetadata = (): void => {
+    resolveMetadata.mutate(game.appId, {
+      onSuccess: (result) => {
+        if (result) {
+          message.success(`Metadata atualizada para "${result.title}".`)
+        } else {
+          message.warning(`Não consegui metadata da Steam para "${game.name}".`)
+        }
+      },
+      onError: (error) => {
+        message.error(error instanceof Error ? error.message : 'Falha ao buscar metadata.')
+      }
+    })
+  }
+
   const sortedAchievements = achievements
     ? [...achievements.achievements].sort((a, b) => Number(b.achieved) - Number(a.achieved))
     : []
@@ -142,9 +164,20 @@ export function LibraryGameDetailPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           Voltar
         </Button>
-        <a href={steamStoreUrl} target="_blank" rel="noreferrer">
-          <Button icon={<ExportOutlined />}>Ver na Steam</Button>
-        </a>
+        <Space>
+          <Tooltip title="Busca a metadata da Steam (capa, gênero, sinopse, trailer...) só deste jogo">
+            <Button
+              icon={<SyncOutlined />}
+              loading={resolveMetadata.isPending}
+              onClick={handleResolveMetadata}
+            >
+              Buscar metadados da Steam
+            </Button>
+          </Tooltip>
+          <a href={steamStoreUrl} target="_blank" rel="noreferrer">
+            <Button icon={<ExportOutlined />}>Ver na Steam</Button>
+          </a>
+        </Space>
       </TopBar>
 
       <GameHero

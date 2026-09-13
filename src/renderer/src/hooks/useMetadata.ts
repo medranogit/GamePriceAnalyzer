@@ -1,3 +1,4 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
 
 export function useMetadataCache() {
@@ -22,6 +23,18 @@ export function useMetadataResolveStatus() {
     queryFn: () => window.api.metadata.getResolveStatus(),
     refetchInterval: 2_000,
     refetchIntervalInBackground: true
+  })
+}
+
+export function useResolveGameMetadata() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (appId: number) => window.api.metadata.resolveOne(appId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metadata-cache'] })
+      queryClient.invalidateQueries({ queryKey: ['deals'] })
+      queryClient.invalidateQueries({ queryKey: ['wishlist-deals-cache'] })
+    }
   })
 }
 

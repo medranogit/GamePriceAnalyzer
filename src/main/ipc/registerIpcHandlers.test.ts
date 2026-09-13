@@ -45,6 +45,7 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       clear: noop
     },
     resolveMissingMetadata: { execute: noop } as never,
+    fetchSingleGameMetadata: { execute: noop } as never,
     fetchGameAchievements: { execute: noop } as never,
     syncSteamLibrary: { execute: noop } as never,
     addWishlistItem: { execute: noop } as never,

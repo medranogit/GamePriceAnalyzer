@@ -34,6 +34,7 @@ import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
 import { RefreshLibraryMetadata } from './domain/use-cases/RefreshLibraryMetadata'
+import { FetchSingleGameMetadata } from './domain/use-cases/FetchSingleGameMetadata'
 import { FetchGameAchievements } from './domain/use-cases/FetchGameAchievements'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
@@ -178,6 +179,11 @@ async function bootstrap(): Promise<void> {
     metadataRepository,
     sessionLogRepository
   )
+  const fetchSingleGameMetadata = new FetchSingleGameMetadata(
+    cacheRepository,
+    metadataRepository,
+    sessionLogRepository
+  )
   const fetchGameAchievements = new FetchGameAchievements(steamAchievementsRepository)
 
   mainWindow = createMainWindow()
@@ -270,6 +276,7 @@ async function bootstrap(): Promise<void> {
     notificationService,
     notifiedDealsRepository,
     resolveMissingMetadata,
+    fetchSingleGameMetadata,
     fetchGameAchievements,
     sessionLogRepository,
     pollingStateRepository,

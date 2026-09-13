@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   metadataResolveMissing: 'metadata:resolveMissing',
   metadataResolveCancel: 'metadata:resolveCancel',
   metadataResolveStatus: 'metadata:resolveStatus',
+  metadataResolveOne: 'metadata:resolveOne',
   metadataGetAll: 'metadata:getAll',
   achievementsGet: 'achievements:get',
   secretsStatus: 'secrets:status',

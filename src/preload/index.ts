@@ -53,6 +53,8 @@ const api = {
     cancelResolve: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.metadataResolveCancel),
     getResolveStatus: (): Promise<{ resolving: boolean }> =>
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveStatus),
+    resolveOne: (appId: number): Promise<GameMetadata | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOne, appId),
     getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
   },
   achievements: {

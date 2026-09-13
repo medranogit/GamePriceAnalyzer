@@ -1,7 +1,8 @@
 import { Image, Tag, Typography } from 'antd'
-import { TeamOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CodeOutlined, ShopOutlined, StarOutlined, TeamOutlined } from '@ant-design/icons'
 import styled from 'styled-components'
 import { GameCover } from '@renderer/components/GameCover/GameCover'
+import { HlsVideo } from '@renderer/components/HlsVideo/HlsVideo'
 import { formatCount } from '@renderer/lib/formatters'
 
 const { Title, Text } = Typography
@@ -28,20 +29,73 @@ const HeroTitle = styled(Title)`
   }
 `
 
-const MetaRow = styled.div`
+const CreditsColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+`
+
+const CreditLine = styled(Text)`
+  &&& {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 13px;
+  }
+`
+
+const StatsRow = styled.div`
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+`
+
+const StatCard = styled.div`
+  display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-  color: ${({ theme }) => theme.colors.textMuted};
+  gap: 10px;
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 10px;
+  padding: 8px 14px;
+`
+
+const StatIconBadge = styled.div<{ $accent: string }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  color: ${({ $accent }) => $accent};
+  background: ${({ $accent }) => $accent}26;
+`
+
+const StatLabel = styled(Text)`
+  &&& {
+    display: block;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 11px;
+    line-height: 1.3;
+  }
+`
+
+const StatValue = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
 `
 
 const GenresRow = styled.div`
   margin-bottom: 16px;
 `
 
-const Trailer = styled.video`
+const Trailer = styled(HlsVideo)`
   display: block;
   width: 100%;
   max-height: 420px;
@@ -57,6 +111,9 @@ const ScreenshotsRow = styled.div`
   margin-bottom: 20px;
   padding-bottom: 4px;
 `
+
+const RELEASE_DATE_ACCENT = '#1fa89e'
+const REVIEWS_ACCENT = '#9254de'
 
 function metacriticColor(score: number): string {
   if (score >= 75) return '#3fb950'
@@ -91,11 +148,8 @@ export function GameHero({
   trailerUrl,
   screenshots
 }: GameHeroProps) {
-  const metaParts: string[] = []
-  if (developers.length > 0) metaParts.push(developers.join(', '))
-  if (publishers.length > 0 && publishers.join(',') !== developers.join(','))
-    metaParts.push(publishers.join(', '))
-  if (releaseDate) metaParts.push(releaseDate)
+  const showPublishers = publishers.length > 0 && publishers.join(',') !== developers.join(',')
+  const galleryImages = coverUrl ? [coverUrl, ...screenshots.filter((url) => url !== coverUrl)] : screenshots
 
   return (
     <>
@@ -105,19 +159,58 @@ export function GameHero({
         <HeroTitle level={2}>{title}</HeroTitle>
       </Hero>
 
-      <MetaRow>
-        {metaParts.length > 0 && <Text type="secondary">{metaParts.join(' · ')}</Text>}
+      {(developers.length > 0 || showPublishers) && (
+        <CreditsColumn>
+          {developers.length > 0 && (
+            <CreditLine>
+              <CodeOutlined /> Desenvolvido por {developers.join(', ')}
+            </CreditLine>
+          )}
+          {showPublishers && (
+            <CreditLine>
+              <ShopOutlined /> Publicado por {publishers.join(', ')}
+            </CreditLine>
+          )}
+        </CreditsColumn>
+      )}
+
+      <StatsRow>
+        {releaseDate && (
+          <StatCard>
+            <StatIconBadge $accent={RELEASE_DATE_ACCENT}>
+              <CalendarOutlined />
+            </StatIconBadge>
+            <div>
+              <StatLabel>Lançamento</StatLabel>
+              <StatValue>{releaseDate}</StatValue>
+            </div>
+          </StatCard>
+        )}
+
         {metacriticScore !== null && (
-          <Tag color={metacriticColor(metacriticScore)} style={{ margin: 0 }}>
-            Metacritic {metacriticScore}
-          </Tag>
+          <StatCard>
+            <StatIconBadge $accent={metacriticColor(metacriticScore)}>
+              <StarOutlined />
+            </StatIconBadge>
+            <div>
+              <StatLabel>Metacritic</StatLabel>
+              <StatValue>{metacriticScore}</StatValue>
+            </div>
+          </StatCard>
         )}
+
         {recommendationsTotal !== null && (
-          <Text type="secondary">
-            <TeamOutlined /> {formatCount(recommendationsTotal)} avaliações na Steam
-          </Text>
+          <StatCard>
+            <StatIconBadge $accent={REVIEWS_ACCENT}>
+              <TeamOutlined />
+            </StatIconBadge>
+            <div>
+              <StatLabel>Avaliações na Steam</StatLabel>
+              <StatValue>{formatCount(recommendationsTotal)}</StatValue>
+            </div>
+          </StatCard>
         )}
-      </MetaRow>
+      </StatsRow>
 
       <GenresRow>
         {genres.map((genre) => (
@@ -127,12 +220,12 @@ export function GameHero({
 
       {shortDescription && <Text style={{ display: 'block', marginBottom: 16 }}>{shortDescription}</Text>}
 
-      {trailerUrl && <Trailer src={trailerUrl} controls preload="metadata" poster={coverUrl} />}
+      {trailerUrl && <Trailer src={trailerUrl} poster={coverUrl} />}
 
-      {screenshots.length > 0 && (
+      {galleryImages.length > 0 && (
         <Image.PreviewGroup>
           <ScreenshotsRow>
-            {screenshots.map((url) => (
+            {galleryImages.map((url) => (
               <Image key={url} src={url} height={90} style={{ borderRadius: 6 }} />
             ))}
           </ScreenshotsRow>

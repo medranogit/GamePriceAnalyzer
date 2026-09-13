@@ -25,8 +25,10 @@ interface AppDetailsResponse {
       movies?: Array<{
         id: number
         highlight: boolean
-        // Alguns vídeos da Steam só têm `webm`, sem `mp4` — por isso opcional, não vale assumir presença.
+        // A Steam parou de devolver `mp4` pra maioria dos jogos (só streaming adaptativo agora) — por
+        // isso o fallback pro manifest HLS abaixo, que dá pra tocar via hls.js no player.
         mp4?: { '480': string; max?: string }
+        hls_h264?: string
       }>
     }
   }
@@ -57,7 +59,7 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
       if (!entry?.success || !entry.data) return null
 
       const movie = entry.data.movies?.find((m) => m.highlight) ?? entry.data.movies?.[0]
-      const trailerUrl = movie?.mp4 ? (movie.mp4.max ?? movie.mp4['480']) : null
+      const trailerUrl = movie ? (movie.mp4?.max ?? movie.mp4?.['480'] ?? movie.hls_h264 ?? null) : null
 
       return {
         appId,
