@@ -26,4 +26,12 @@ export interface AppCacheRepository {
    */
   getPendingDealsAppIds(): number[]
   setPendingDealsAppIds(appIds: number[]): void
+
+  /**
+   * AppIDs que ainda faltam ser reconferidos no ciclo de refresh de metadata da biblioteca (24h) em
+   * andamento — mesma ideia de `getPendingDealsAppIds`, mas pro RefreshLibraryMetadata: se o app fechar
+   * no meio de uma reconferência grande, a próxima execução retoma de onde parou em vez de recomeçar.
+   */
+  getPendingLibraryRefreshAppIds(): number[]
+  setPendingLibraryRefreshAppIds(appIds: number[]): void
 }

@@ -33,6 +33,7 @@ import { RefreshWishlistPrices } from './domain/use-cases/RefreshWishlistPrices'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
+import { RefreshLibraryMetadata } from './domain/use-cases/RefreshLibraryMetadata'
 import { FetchGameAchievements } from './domain/use-cases/FetchGameAchievements'
 import { CheckDealAlerts } from './domain/use-cases/CheckDealAlerts'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
@@ -172,6 +173,11 @@ async function bootstrap(): Promise<void> {
     metadataRepository,
     sessionLogRepository
   )
+  const refreshLibraryMetadata = new RefreshLibraryMetadata(
+    cacheRepository,
+    metadataRepository,
+    sessionLogRepository
+  )
   const fetchGameAchievements = new FetchGameAchievements(steamAchievementsRepository)
 
   mainWindow = createMainWindow()
@@ -221,12 +227,31 @@ async function bootstrap(): Promise<void> {
   )
   wishlistSyncScheduler.start()
 
+  // Reconfere a metadata de TODA a biblioteca a cada 24h — diferente de ResolveMissingMetadata (que só
+  // preenche o que falta), essa pega mudanças em quem já tinha tudo cacheado (capa nova, sinopse
+  // editada, gênero atualizado etc.).
+  const libraryMetadataRefreshStateRepository = new JsonPollingStateRepository(
+    'library-metadata-refresh-state.json'
+  )
+  const LIBRARY_METADATA_REFRESH_INTERVAL_MINUTES = 24 * 60
+  const libraryMetadataRefreshScheduler = new LastRunScheduler(
+    'Reconferência de metadata da biblioteca',
+    async () => {
+      await refreshLibraryMetadata.execute()
+    },
+    libraryMetadataRefreshStateRepository,
+    sessionLogRepository,
+    LIBRARY_METADATA_REFRESH_INTERVAL_MINUTES
+  )
+  libraryMetadataRefreshScheduler.start()
+
   // Ping periódico no Log da Sessão com quanto falta pra próxima busca/sync,
   // pra acompanhar sem precisar esperar o próprio evento acontecer.
   const STATUS_PING_INTERVAL_MS = 5 * 60 * 1000
   setInterval(() => {
     scheduler.logStatus()
     wishlistSyncScheduler.logStatus()
+    libraryMetadataRefreshScheduler.logStatus()
   }, STATUS_PING_INTERVAL_MS)
 
   registerIpcHandlers({

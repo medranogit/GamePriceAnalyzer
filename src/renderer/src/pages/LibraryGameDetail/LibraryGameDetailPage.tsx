@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import { useLibrary } from '@renderer/hooks/useLibrary'
 import { useMetadataCache, useGameAchievements } from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
+import { formatDate } from '@renderer/lib/formatters'
 
 const { Text } = Typography
 
@@ -62,11 +63,17 @@ const SectionTitle = styled.h3`
   margin: 0 0 12px;
 `
 
+const ContentColumns = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+`
+
 const AchievementsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   gap: 10px;
-  margin-bottom: 20px;
 `
 
 const AchievementIcon = styled.img<{ $achieved: boolean }>`
@@ -77,6 +84,22 @@ const AchievementIcon = styled.img<{ $achieved: boolean }>`
   filter: ${({ $achieved }) => ($achieved ? 'none' : 'grayscale(60%)')};
   border: 1px solid ${({ theme }) => theme.colors.border};
 `
+
+const AchievementsMoreTile = styled.div`
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.textMuted};
+`
+
+const MAX_VISIBLE_ACHIEVEMENTS = 30
 
 const PLAYTIME_ACCENT = '#1fa89e'
 const ACHIEVEMENTS_ACCENT = '#d4a72c'
@@ -106,6 +129,12 @@ export function LibraryGameDetailPage() {
 
   const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}/`
   const hours = game.playtimeForeverMinutes / 60
+
+  const sortedAchievements = achievements
+    ? [...achievements.achievements].sort((a, b) => Number(b.achieved) - Number(a.achieved))
+    : []
+  const visibleAchievements = sortedAchievements.slice(0, MAX_VISIBLE_ACHIEVEMENTS)
+  const hiddenAchievementsCount = sortedAchievements.length - visibleAchievements.length
 
   return (
     <div>
@@ -158,34 +187,47 @@ export function LibraryGameDetailPage() {
         )}
       </StatsGrid>
 
-      {achievements && achievements.total > 0 && (
-        <>
-          <SectionTitle>Conquistas</SectionTitle>
-          <Progress
-            percent={Math.round((achievements.unlocked / achievements.total) * 100)}
-            style={{ marginBottom: 12 }}
-          />
-          <AchievementsGrid>
-            {achievements.achievements.map((achievement) => (
-              <Tooltip
-                key={achievement.apiName}
-                title={
-                  <>
-                    <strong>{achievement.displayName}</strong>
-                    {achievement.description && <div>{achievement.description}</div>}
-                  </>
-                }
-              >
-                <AchievementIcon
-                  src={achievement.achieved ? achievement.iconUrl : achievement.iconGrayUrl}
-                  $achieved={achievement.achieved}
-                  alt={achievement.displayName}
-                />
-              </Tooltip>
-            ))}
-          </AchievementsGrid>
-        </>
-      )}
+      <ContentColumns>
+        <div>
+          {achievements && achievements.total > 0 && (
+            <>
+              <SectionTitle>Conquistas</SectionTitle>
+              <Progress
+                percent={Math.round((achievements.unlocked / achievements.total) * 100)}
+                style={{ marginBottom: 12 }}
+              />
+              <AchievementsGrid>
+                {visibleAchievements.map((achievement) => (
+                  <Tooltip
+                    key={achievement.apiName}
+                    title={
+                      <>
+                        <strong>{achievement.displayName}</strong>
+                        {achievement.description && <div>{achievement.description}</div>}
+                        {achievement.achieved && achievement.unlockedAt && (
+                          <div>Desbloqueada em {formatDate(achievement.unlockedAt)}</div>
+                        )}
+                      </>
+                    }
+                  >
+                    <AchievementIcon
+                      src={achievement.achieved ? achievement.iconUrl : achievement.iconGrayUrl}
+                      $achieved={achievement.achieved}
+                      alt={achievement.displayName}
+                    />
+                  </Tooltip>
+                ))}
+                {hiddenAchievementsCount > 0 && (
+                  <Tooltip title={`+${hiddenAchievementsCount} conquista(s) não exibida(s)`}>
+                    <AchievementsMoreTile>+{hiddenAchievementsCount}</AchievementsMoreTile>
+                  </Tooltip>
+                )}
+              </AchievementsGrid>
+            </>
+          )}
+        </div>
+        <div />
+      </ContentColumns>
     </div>
   )
 }

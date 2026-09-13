@@ -32,7 +32,9 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       setMetadata: noop,
       getAllMetadata: () => [],
       getPendingDealsAppIds: () => [],
-      setPendingDealsAppIds: noop
+      setPendingDealsAppIds: noop,
+      getPendingLibraryRefreshAppIds: () => [],
+      setPendingLibraryRefreshAppIds: noop
     },
     historyRepository: { getEvents: () => [], addEvent: noop },
     notificationService: { notifyDeal, notifyDealsBatch: noop, dismissAll: noop },
