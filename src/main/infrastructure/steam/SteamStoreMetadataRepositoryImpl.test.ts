@@ -25,10 +25,10 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
     const result = await repository.fetchMetadata(730)
 
     expect(result?.title).toBe('CS2')
-    expect(result?.trailerUrl).toBeNull()
+    expect(result?.trailers).toEqual([])
   })
 
-  it('usa o manifest HLS quando o vídeo em destaque não tem mp4 (caso atual da Steam, que parou de devolver mp4 pra maioria dos jogos)', async () => {
+  it('usa o manifest HLS quando o vídeo não tem mp4 (caso atual da Steam, que parou de devolver mp4 pra maioria dos jogos)', async () => {
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(
       makeResponse({
         '346110': {
@@ -36,7 +36,14 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
           data: {
             name: 'ARK: Survival Evolved',
             genres: [],
-            movies: [{ id: 1, highlight: true, hls_h264: 'https://video.example.com/trailer.m3u8' }]
+            movies: [
+              {
+                id: 1,
+                highlight: true,
+                thumbnail: 'https://example.com/thumb.jpg',
+                hls_h264: 'https://video.example.com/trailer.m3u8'
+              }
+            ]
           }
         }
       })
@@ -45,10 +52,12 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
 
     const result = await repository.fetchMetadata(346110)
 
-    expect(result?.trailerUrl).toBe('https://video.example.com/trailer.m3u8')
+    expect(result?.trailers).toEqual([
+      { url: 'https://video.example.com/trailer.m3u8', thumbnailUrl: 'https://example.com/thumb.jpg' }
+    ])
   })
 
-  it('não quebra (e fica sem trailer) quando o vídeo em destaque só tem webm, sem mp4 nem hls — regressão real do appdetails', async () => {
+  it('não quebra (e ignora o vídeo) quando ele só tem webm, sem mp4 nem hls — regressão real do appdetails', async () => {
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(
       makeResponse({
         '2280': {
@@ -67,20 +76,26 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
 
     expect(result).not.toBeNull()
     expect(result?.title).toBe('Jogo antigo')
-    expect(result?.trailerUrl).toBeNull()
+    expect(result?.trailers).toEqual([])
   })
 
-  it('usa o mp4 "max" do vídeo em destaque quando disponível', async () => {
+  it('extrai TODOS os trailers do jogo, não só o "highlight" — jogos maiores têm vários (lançamento, DLCs, updates)', async () => {
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(
       makeResponse({
         '1': {
           success: true,
           data: {
-            name: 'Jogo com trailer',
+            name: 'Jogo com vários trailers',
             genres: [],
             movies: [
-              { id: 1, highlight: false, mp4: { '480': 'low.mp4' } },
-              { id: 2, highlight: true, mp4: { '480': 'low2.mp4', max: 'max2.mp4' } }
+              {
+                id: 1,
+                highlight: true,
+                thumbnail: 'thumb1.jpg',
+                mp4: { '480': 'low1.mp4', max: 'max1.mp4' }
+              },
+              { id: 2, highlight: true, thumbnail: 'thumb2.jpg', mp4: { '480': 'low2.mp4' } },
+              { id: 3, highlight: false, webm: { '480': 'x.webm' } }
             ]
           }
         }
@@ -90,6 +105,9 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
 
     const result = await repository.fetchMetadata(1)
 
-    expect(result?.trailerUrl).toBe('max2.mp4')
+    expect(result?.trailers).toEqual([
+      { url: 'max1.mp4', thumbnailUrl: 'thumb1.jpg' },
+      { url: 'low2.mp4', thumbnailUrl: 'thumb2.jpg' }
+    ])
   })
 })

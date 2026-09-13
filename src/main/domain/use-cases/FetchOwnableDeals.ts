@@ -151,7 +151,7 @@ export class FetchOwnableDeals {
         metacriticScore: metadata?.metacriticScore ?? deal.metacriticScore ?? null,
         recommendationsTotal: metadata?.recommendationsTotal ?? deal.recommendationsTotal ?? null,
         screenshots: metadata?.screenshots ?? deal.screenshots ?? [],
-        trailerUrl: metadata?.trailerUrl ?? deal.trailerUrl ?? null
+        trailers: metadata?.trailers ?? deal.trailers ?? []
       })
     }
 

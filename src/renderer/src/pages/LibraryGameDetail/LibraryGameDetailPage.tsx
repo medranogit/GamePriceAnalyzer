@@ -190,7 +190,7 @@ export function LibraryGameDetailPage() {
         metacriticScore={metadata?.metacriticScore ?? null}
         recommendationsTotal={metadata?.recommendationsTotal ?? null}
         shortDescription={metadata?.shortDescription ?? null}
-        trailerUrl={metadata?.trailerUrl ?? null}
+        trailers={metadata?.trailers ?? []}
         screenshots={metadata?.screenshots ?? []}
       />
 

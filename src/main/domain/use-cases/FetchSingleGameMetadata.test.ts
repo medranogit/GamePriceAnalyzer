@@ -32,7 +32,7 @@ function makeMetadata(appId: number, overrides: Partial<GameMetadata> = {}): Gam
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null,
+    trailers: [],
     ...overrides
   }
 }
@@ -104,7 +104,7 @@ describe('FetchSingleGameMetadata', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailerUrl: null,
+      trailers: [],
       coverUrl: 'https://example.com/old.jpg',
       firstSeenAt: new Date().toISOString()
     }

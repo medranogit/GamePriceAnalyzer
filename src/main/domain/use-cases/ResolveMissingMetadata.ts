@@ -19,7 +19,7 @@ const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'metacriticScore',
   'recommendationsTotal',
   'screenshots',
-  'trailerUrl'
+  'trailers'
 ]
 
 export interface ResolveMissingMetadataResult {

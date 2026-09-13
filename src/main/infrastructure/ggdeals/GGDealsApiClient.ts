@@ -172,7 +172,7 @@ export class GGDealsApiClient {
         metacriticScore: null,
         recommendationsTotal: null,
         screenshots: [],
-        trailerUrl: null,
+        trailers: [],
         firstSeenAt: new Date().toISOString()
       })
     }

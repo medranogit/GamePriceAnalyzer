@@ -36,7 +36,7 @@ function makeMetadata(appId: number): GameMetadata {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null
+    trailers: []
   }
 }
 
@@ -121,7 +121,7 @@ describe('RefreshLibraryMetadata', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailerUrl: null,
+      trailers: [],
       coverUrl: 'https://example.com/old.jpg',
       firstSeenAt: new Date().toISOString()
     }

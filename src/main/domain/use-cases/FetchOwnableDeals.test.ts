@@ -55,7 +55,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null,
+    trailers: [],
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }
@@ -159,7 +159,7 @@ describe('FetchOwnableDeals', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailerUrl: null
+      trailers: []
     }
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
@@ -220,7 +220,7 @@ describe('FetchOwnableDeals', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailerUrl: null
+      trailers: []
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])

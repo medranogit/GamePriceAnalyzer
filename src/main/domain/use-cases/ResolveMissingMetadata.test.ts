@@ -50,7 +50,7 @@ function makeMetadata(appId: number): GameMetadata {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null
+    trailers: []
   }
 }
 
@@ -75,7 +75,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null,
+    trailers: [],
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

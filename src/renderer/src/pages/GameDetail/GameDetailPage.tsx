@@ -151,7 +151,7 @@ export function GameDetailPage() {
         metacriticScore={deal.metacriticScore}
         recommendationsTotal={deal.recommendationsTotal}
         shortDescription={deal.shortDescription}
-        trailerUrl={deal.trailerUrl}
+        trailers={deal.trailers ?? []}
         screenshots={deal.screenshots ?? []}
       />
 

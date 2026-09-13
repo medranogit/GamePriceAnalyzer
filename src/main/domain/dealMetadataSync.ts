@@ -21,10 +21,12 @@ export function applyMetadataToDeal(
   const dealDevelopers = deal.developers ?? []
   const dealPublishers = deal.publishers ?? []
   const dealScreenshots = deal.screenshots ?? []
+  const dealTrailers = deal.trailers ?? []
   const metadataGenres = metadata.genres ?? []
   const metadataDevelopers = metadata.developers ?? []
   const metadataPublishers = metadata.publishers ?? []
   const metadataScreenshots = metadata.screenshots ?? []
+  const metadataTrailers = metadata.trailers ?? []
 
   const nextCoverUrl = preferFreshMetadata
     ? (metadata.headerImageUrl ?? deal.coverUrl ?? undefined)
@@ -63,9 +65,13 @@ export function applyMetadataToDeal(
     : dealScreenshots.length > 0
       ? dealScreenshots
       : metadataScreenshots
-  const nextTrailerUrl = preferFreshMetadata
-    ? (metadata.trailerUrl ?? deal.trailerUrl ?? null)
-    : (deal.trailerUrl ?? metadata.trailerUrl ?? null)
+  const nextTrailers = preferFreshMetadata
+    ? metadataTrailers.length > 0
+      ? metadataTrailers
+      : dealTrailers
+    : dealTrailers.length > 0
+      ? dealTrailers
+      : metadataTrailers
 
   const isUpToDate =
     nextCoverUrl === deal.coverUrl &&
@@ -77,7 +83,7 @@ export function applyMetadataToDeal(
     nextMetacriticScore === deal.metacriticScore &&
     nextRecommendationsTotal === deal.recommendationsTotal &&
     nextScreenshots === deal.screenshots &&
-    nextTrailerUrl === deal.trailerUrl &&
+    nextTrailers === deal.trailers &&
     deal.steamPrice === metadata.steamPrice &&
     deal.steamDiscountPercent === metadata.steamDiscountPercent &&
     deal.steamFullPrice === metadata.steamFullPrice
@@ -94,7 +100,7 @@ export function applyMetadataToDeal(
     metacriticScore: nextMetacriticScore,
     recommendationsTotal: nextRecommendationsTotal,
     screenshots: nextScreenshots,
-    trailerUrl: nextTrailerUrl,
+    trailers: nextTrailers,
     steamPrice: metadata.steamPrice,
     steamDiscountPercent: metadata.steamDiscountPercent,
     steamFullPrice: metadata.steamFullPrice

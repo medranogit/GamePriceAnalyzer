@@ -18,7 +18,7 @@ function makeMetadata(appId: number, overrides: Partial<GameMetadata> = {}): Gam
     metacriticScore: 90,
     recommendationsTotal: 1000,
     screenshots: ['https://example.com/new-shot.jpg'],
-    trailerUrl: 'https://example.com/new-trailer.mp4',
+    trailers: [{ url: 'https://example.com/new-trailer.mp4', thumbnailUrl: null }],
     ...overrides
   }
 }
@@ -44,7 +44,7 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
     metacriticScore: 50,
     recommendationsTotal: 10,
     screenshots: ['https://example.com/old-shot.jpg'],
-    trailerUrl: 'https://example.com/old-trailer.mp4',
+    trailers: [{ url: 'https://example.com/old-trailer.mp4', thumbnailUrl: null }],
     coverUrl: 'https://example.com/old-cover.jpg',
     firstSeenAt: new Date().toISOString(),
     ...overrides
@@ -63,7 +63,7 @@ describe('applyMetadataToDeal', () => {
     expect(result.developers).toEqual(['Dev Antiga'])
     expect(result.releaseDate).toBe('2020')
     expect(result.metacriticScore).toBe(50)
-    expect(result.trailerUrl).toBe('https://example.com/old-trailer.mp4')
+    expect(result.trailers).toEqual([{ url: 'https://example.com/old-trailer.mp4', thumbnailUrl: null }])
   })
 
   it('com preferFreshMetadata, sobrescreve com o valor mais recente da Steam mesmo quando a oferta já tinha um valor', () => {
@@ -77,7 +77,7 @@ describe('applyMetadataToDeal', () => {
     expect(result.developers).toEqual(['Dev Nova'])
     expect(result.releaseDate).toBe('2024')
     expect(result.metacriticScore).toBe(90)
-    expect(result.trailerUrl).toBe('https://example.com/new-trailer.mp4')
+    expect(result.trailers).toEqual([{ url: 'https://example.com/new-trailer.mp4', thumbnailUrl: null }])
   })
 
   it('com preferFreshMetadata, mantém o valor antigo se a Steam não devolver nada novo dessa vez', () => {
@@ -90,7 +90,7 @@ describe('applyMetadataToDeal', () => {
       releaseDate: null,
       metacriticScore: null,
       recommendationsTotal: null,
-      trailerUrl: null,
+      trailers: [],
       shortDescription: null
     })
 
@@ -99,6 +99,7 @@ describe('applyMetadataToDeal', () => {
     expect(result.developers).toEqual(['Dev Antiga'])
     expect(result.releaseDate).toBe('2020')
     expect(result.shortDescription).toBe('Sinopse antiga.')
+    expect(result.trailers).toEqual([{ url: 'https://example.com/old-trailer.mp4', thumbnailUrl: null }])
   })
 
   it('retorna a mesma referência quando nada muda (evita reescrever cache à toa)', () => {
@@ -112,7 +113,7 @@ describe('applyMetadataToDeal', () => {
       metacriticScore: deal.metacriticScore,
       recommendationsTotal: deal.recommendationsTotal,
       screenshots: deal.screenshots,
-      trailerUrl: deal.trailerUrl,
+      trailers: deal.trailers,
       genres: deal.genres,
       steamPrice: deal.steamPrice,
       steamDiscountPercent: deal.steamDiscountPercent,

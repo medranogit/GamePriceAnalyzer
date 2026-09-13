@@ -235,7 +235,7 @@ function makeFakeDeal(overrides: Partial<GameDeal>): GameDeal {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailerUrl: null,
+    trailers: [],
     firstSeenAt: new Date().toISOString(),
     ...overrides
   }

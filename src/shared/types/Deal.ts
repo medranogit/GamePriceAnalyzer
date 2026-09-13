@@ -1,3 +1,5 @@
+import type { GameTrailer } from './GameMetadata'
+
 export interface GameDeal {
   appId: number | null
   title: string
@@ -20,7 +22,7 @@ export interface GameDeal {
   metacriticScore: number | null
   recommendationsTotal: number | null
   screenshots: string[]
-  trailerUrl: string | null
+  trailers: GameTrailer[]
   /** Quando essa oferta apareceu pela primeira vez pra este programa (persiste entre buscas). */
   firstSeenAt: string
 }

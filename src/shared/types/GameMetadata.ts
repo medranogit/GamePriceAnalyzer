@@ -1,3 +1,8 @@
+export interface GameTrailer {
+  url: string
+  thumbnailUrl: string | null
+}
+
 export interface GameMetadata {
   appId: number
   title: string | null
@@ -14,5 +19,5 @@ export interface GameMetadata {
   metacriticScore: number | null
   recommendationsTotal: number | null
   screenshots: string[]
-  trailerUrl: string | null
+  trailers: GameTrailer[]
 }
