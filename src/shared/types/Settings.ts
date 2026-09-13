@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     onlyHistoricalLow: false
   },
   polling: {
-    intervalMinutes: 60,
+    intervalMinutes: 70,
     wishlistSyncIntervalMinutes: 120,
     librarySyncIntervalMinutes: 30,
     metadataBackfillIntervalMinutes: 20,

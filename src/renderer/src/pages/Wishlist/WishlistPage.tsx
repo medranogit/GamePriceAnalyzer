@@ -28,12 +28,15 @@ export function WishlistPage() {
     {
       title: 'Jogo',
       key: 'title',
+      sorter: (a: WishlistItem, b: WishlistItem) => a.title.localeCompare(b.title),
       render: (_: unknown, item: WishlistItem) => item.title
     },
     {
       title: 'Adicionado em',
       key: 'addedDate',
       width: 160,
+      sorter: (a: WishlistItem, b: WishlistItem) =>
+        new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime(),
       render: (_: unknown, item: WishlistItem) => formatDate(item.addedDate)
     },
     {
