@@ -14,11 +14,11 @@ import {
   Tag,
   Typography
 } from 'antd'
-import { SearchOutlined, SyncOutlined } from '@ant-design/icons'
+import { PictureOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { useLibrary, useSyncLibrary } from '@renderer/hooks/useLibrary'
-import { useMetadataCache } from '@renderer/hooks/useMetadata'
+import { useMetadataCache, useMetadataResolveStatus } from '@renderer/hooks/useMetadata'
 import { useSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
 import { getGenreIcon } from '@renderer/lib/genreIcons'
@@ -26,6 +26,7 @@ import {
   LibraryGameCard,
   type LibraryGameCardData
 } from '@renderer/components/LibraryGameCard/LibraryGameCard'
+import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
 
 const { Title, Text } = Typography
 
@@ -49,7 +50,9 @@ const FiltersGroup = styled(Space)`
 export function LibraryPage() {
   const { data: settings } = useSettings()
   const { data: games = [], isLoading } = useLibrary()
-  const { data: metadataList = [] } = useMetadataCache()
+  const { data: metadataList = [], dataUpdatedAt: metadataUpdatedAt } = useMetadataCache()
+  const { data: resolveStatus } = useMetadataResolveStatus()
+  const resolvingMetadata = resolveStatus?.resolving ?? false
   const syncLibrary = useSyncLibrary()
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -117,15 +120,23 @@ export function LibraryPage() {
             </Tag>
           )}
         </Title>
-        <Button
-          type="primary"
-          icon={<SyncOutlined />}
-          loading={syncLibrary.isPending}
-          disabled={!settings?.steamId64}
-          onClick={() => syncLibrary.mutate()}
-        >
-          Sincronizar com a Steam
-        </Button>
+        <Space align="center">
+          <RefreshCountdown dataUpdatedAt={metadataUpdatedAt} />
+          {resolvingMetadata && (
+            <Text type="secondary">
+              <PictureOutlined /> Buscando capas/gêneros da Steam...
+            </Text>
+          )}
+          <Button
+            type="primary"
+            icon={<SyncOutlined />}
+            loading={syncLibrary.isPending}
+            disabled={!settings?.steamId64}
+            onClick={() => syncLibrary.mutate()}
+          >
+            Sincronizar com a Steam
+          </Button>
+        </Space>
       </TopRow>
 
       {!settings?.steamId64 && (

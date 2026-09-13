@@ -18,7 +18,10 @@ import type { SessionLogRepository } from '../domain/repositories/SessionLogRepo
 import type { PollingStateRepository } from '../domain/repositories/PollingStateRepository'
 import type { LastRunScheduler } from '../infrastructure/scheduler/LastRunScheduler'
 import type { NotifiedDealsRepository } from '../domain/repositories/NotifiedDealsRepository'
-import type { ResolveMissingMetadata } from '../domain/use-cases/ResolveMissingMetadata'
+import type {
+  ResolveMissingMetadata,
+  ResolveMissingMetadataScope
+} from '../domain/use-cases/ResolveMissingMetadata'
 import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchievements'
 
 interface Dependencies {
@@ -182,7 +185,9 @@ export function registerIpcHandlers(deps: Dependencies): void {
     deps.notificationService.dismissAll()
   })
 
-  ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, () => deps.resolveMissingMetadata.execute())
+  ipcMain.handle(IPC_CHANNELS.metadataResolveMissing, (_event, scope?: ResolveMissingMetadataScope) =>
+    deps.resolveMissingMetadata.execute(scope)
+  )
 
   ipcMain.handle(IPC_CHANNELS.metadataResolveCancel, () => {
     deps.resolveMissingMetadata.cancel()

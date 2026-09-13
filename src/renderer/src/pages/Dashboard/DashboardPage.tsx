@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Empty, Row, Col, Spin, Tag, Typography, Pagination } from 'antd'
+import { Empty, Row, Col, Space, Spin, Tag, Typography, Pagination } from 'antd'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
 import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
+import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
@@ -16,7 +17,7 @@ const PAGE_SIZE = 24
 export function DashboardPage() {
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
-  const { data: deals = [], isLoading } = useDeals()
+  const { data: deals = [], isLoading, dataUpdatedAt } = useDeals()
 
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
@@ -87,7 +88,10 @@ export function DashboardPage() {
           Ofertas para você
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}
         </Title>
-        <PollingStatus />
+        <Space size="middle">
+          <PollingStatus />
+          <RefreshCountdown dataUpdatedAt={dataUpdatedAt} />
+        </Space>
       </div>
 
       <FilterBar

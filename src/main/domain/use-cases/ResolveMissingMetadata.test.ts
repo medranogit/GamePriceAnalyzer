@@ -157,6 +157,29 @@ describe('ResolveMissingMetadata', () => {
     expect(result.resolved).toBe(2)
   })
 
+  it('com scope "library", ignora a wishlist e resolve só quem está na biblioteca (jogos possuídos)', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1)],
+      getOwnedGames: () => [makeOwnedGame(2)]
+    })
+    const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository()
+    )
+
+    const resultPromise = useCase.execute('library')
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(1)
+    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(result.resolved).toBe(1)
+  })
+
   it.each(['shortDescription', 'headerImageUrl', 'steamFullPrice'] as const)(
     'busca de novo quando a metadata em cache é de uma versão anterior e não tem o campo "%s"',
     async (missingField) => {

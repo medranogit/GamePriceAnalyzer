@@ -4,7 +4,8 @@ export function useMetadataCache() {
   return useQuery({
     queryKey: ['metadata-cache'],
     queryFn: () => window.api.metadata.getAll(),
-    refetchInterval: 60_000
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true
   })
 }
 
@@ -19,7 +20,8 @@ export function useMetadataResolveStatus() {
   return useQuery({
     queryKey: METADATA_RESOLVE_STATUS_KEY,
     queryFn: () => window.api.metadata.getResolveStatus(),
-    refetchInterval: 2_000
+    refetchInterval: 2_000,
+    refetchIntervalInBackground: true
   })
 }
 

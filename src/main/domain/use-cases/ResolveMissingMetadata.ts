@@ -86,12 +86,17 @@ export interface ResolveMissingMetadataResult {
   synced: number
 }
 
+/** 'all' = wishlist + biblioteca (padrão, botão em Configurações). 'library' = só biblioteca (botão de sincronizar em Minha Biblioteca). */
+export type ResolveMissingMetadataScope = 'all' | 'library'
+
 /**
  * Ação manual e independente da busca de ofertas: resolve capa/gênero/sinopse/
- * trailer da Steam pra quem ainda não tem isso em cache — tanto wishlist
- * quanto biblioteca (jogos possuídos), sem duplicar quem está nas duas listas
- * (dispara sozinho a cada busca também, mas essa é a forma de rodar isso na
- * hora, sem esperar o ciclo automático nem gastar tempo com o GG.deals).
+ * trailer da Steam pra quem ainda não tem isso em cache. Por padrão (`scope:
+ * 'all'`) cobre wishlist + biblioteca, sem duplicar quem está nas duas listas
+ * — é o que roda pelo botão em Configurações. Com `scope: 'library'`, só
+ * considera jogos possuídos — é o que o botão "Sincronizar com a Steam" da
+ * tela Minha Biblioteca dispara automaticamente depois de atualizar a lista,
+ * pra não depender do botão genérico só pra ver a capa dos próprios jogos.
  *
  * Sincroniza o cache de ofertas (Dashboard e Wishlist) a cada jogo resolvido
  * — não só no final — pra quem estiver de olho na tela ver o progresso
@@ -108,10 +113,10 @@ export class ResolveMissingMetadata {
     private readonly sessionLogRepository: SessionLogRepository
   ) {}
 
-  execute(): Promise<ResolveMissingMetadataResult> {
+  execute(scope: ResolveMissingMetadataScope = 'all'): Promise<ResolveMissingMetadataResult> {
     if (this.inFlight) return this.inFlight
     this.cancelled = false
-    this.inFlight = this.run().finally(() => {
+    this.inFlight = this.run(scope).finally(() => {
       this.inFlight = null
     })
     return this.inFlight
@@ -126,19 +131,22 @@ export class ResolveMissingMetadata {
     return this.inFlight !== null
   }
 
-  private async run(): Promise<ResolveMissingMetadataResult> {
+  private async run(scope: ResolveMissingMetadataScope): Promise<ResolveMissingMetadataResult> {
     const targetsByAppId = new Map<number, { appId: number; title: string }>()
-    for (const item of this.cacheRepository.getWishlist()) {
-      targetsByAppId.set(item.appId, { appId: item.appId, title: item.title })
+    if (scope === 'all') {
+      for (const item of this.cacheRepository.getWishlist()) {
+        targetsByAppId.set(item.appId, { appId: item.appId, title: item.title })
+      }
     }
     for (const game of this.cacheRepository.getOwnedGames()) {
       targetsByAppId.set(game.appId, { appId: game.appId, title: game.name })
     }
     const missing = [...targetsByAppId.values()].filter((item) => this.isMetadataIncomplete(item.appId))
 
+    const scopeLabel = scope === 'library' ? 'biblioteca' : 'wishlist + biblioteca'
     this.sessionLogRepository.log(
       'info',
-      `Resolvendo metadata da Steam: ${missing.length} jogo(s) sem metadata completa em cache.`
+      `Resolvendo metadata da Steam (${scopeLabel}): ${missing.length} jogo(s) sem metadata completa em cache.`
     )
 
     let resolved = 0
