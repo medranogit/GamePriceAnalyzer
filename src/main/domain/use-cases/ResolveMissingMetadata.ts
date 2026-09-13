@@ -10,17 +10,19 @@ export interface ResolveMissingMetadataResult {
   synced: number
 }
 
-/** 'all' = wishlist + biblioteca (padrão, botão em Configurações). 'library' = só biblioteca (botão de sincronizar em Minha Biblioteca). */
+/** 'all' = wishlist + biblioteca (padrão, botão em Configurações). 'library' = só biblioteca (botão de sincronizar em Minha Biblioteca e o ciclo automático de ofertas). */
 export type ResolveMissingMetadataScope = 'all' | 'library'
 
 /**
- * Ação manual e independente da busca de ofertas: resolve capa/gênero/sinopse/
- * trailer da Steam pra quem ainda não tem isso em cache. Por padrão (`scope:
- * 'all'`) cobre wishlist + biblioteca, sem duplicar quem está nas duas listas
- * — é o que roda pelo botão em Configurações. Com `scope: 'library'`, só
- * considera jogos possuídos — é o que o botão "Sincronizar com a Steam" da
- * tela Minha Biblioteca dispara automaticamente depois de atualizar a lista,
- * pra não depender do botão genérico só pra ver a capa dos próprios jogos.
+ * Resolve capa/gênero/sinopse/trailer da Steam pra quem ainda não tem isso em
+ * cache. Por padrão (`scope: 'all'`) cobre wishlist + biblioteca, sem
+ * duplicar quem está nas duas listas — é o que roda pelo botão em
+ * Configurações. Com `scope: 'library'`, só considera jogos possuídos — tanto
+ * o botão "Sincronizar com a Steam" da tela Minha Biblioteca (na hora, depois
+ * de atualizar a lista) quanto o ciclo automático de busca de ofertas (a cada
+ * `polling.intervalMinutes`, junto com o backfill de wishlist que o
+ * `FetchOwnableDeals` já faz sozinho) disparam isso, pra manter a metadata da
+ * biblioteca completa sem precisar do botão manual.
  *
  * Sincroniza o cache de ofertas (Dashboard e Wishlist) a cada jogo resolvido
  * — não só no final — pra quem estiver de olho na tela ver o progresso

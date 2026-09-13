@@ -231,6 +231,7 @@ async function bootstrap(): Promise<void> {
   const scheduler = new PollingScheduler(
     async () => {
       await checkDealAlerts.execute()
+      await resolveMissingMetadata.execute('library')
     },
     pollingStateRepository,
     sessionLogRepository

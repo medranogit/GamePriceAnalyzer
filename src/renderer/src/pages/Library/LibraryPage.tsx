@@ -27,6 +27,7 @@ import {
   type LibraryGameCardData
 } from '@renderer/components/LibraryGameCard/LibraryGameCard'
 import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
+import { PollingStatus } from '@renderer/components/PollingStatus/PollingStatus'
 
 const { Title, Text } = Typography
 
@@ -121,6 +122,7 @@ export function LibraryPage() {
           )}
         </Title>
         <Space align="center">
+          <PollingStatus />
           <RefreshCountdown dataUpdatedAt={metadataUpdatedAt} />
           {resolvingMetadata && (
             <Text type="secondary">
