@@ -1,6 +1,8 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
+import { mkdir } from 'node:fs/promises'
 import type { AppSettings, GameDeal } from '@shared/types'
 import { IPC_CHANNELS } from '@shared/ipc/channels'
+import { getGameMediaDir } from '../infrastructure/storage/localMediaPaths'
 import type { SettingsRepository } from '../domain/repositories/SettingsRepository'
 import type { AppCacheRepository } from '../domain/repositories/AppCacheRepository'
 import type { SyncSteamLibrary } from '../domain/use-cases/SyncSteamLibrary'
@@ -204,6 +206,13 @@ export function registerIpcHandlers(deps: Dependencies): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.metadataGetAll, () => deps.cacheRepository.getAllMetadata())
+
+  ipcMain.handle(IPC_CHANNELS.localMediaOpenGameFolder, async (_event, appId: number) => {
+    const dir = getGameMediaDir(appId)
+    await mkdir(dir, { recursive: true })
+    const error = await shell.openPath(dir)
+    if (error) throw new Error(error)
+  })
 
   ipcMain.handle(IPC_CHANNELS.achievementsGet, (_event, appId: number) => {
     const settings = deps.settingsRepository.get()

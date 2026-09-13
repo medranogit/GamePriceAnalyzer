@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   metadataResolveStatus: 'metadata:resolveStatus',
   metadataResolveOne: 'metadata:resolveOne',
   metadataGetAll: 'metadata:getAll',
+  localMediaOpenGameFolder: 'localMedia:openGameFolder',
   achievementsGet: 'achievements:get',
   secretsStatus: 'secrets:status',
   secretsSetSteamApiKey: 'secrets:setSteamApiKey',

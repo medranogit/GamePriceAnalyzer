@@ -53,8 +53,8 @@ const SiderFooter = styled.div`
 `
 
 const menuItems = [
-  { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Ofertas</Link> },
   { key: '/library', icon: <DatabaseOutlined />, label: <Link to="/library">Minha Biblioteca</Link> },
+  { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Ofertas</Link> },
   { key: '/wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Wishlist</Link> },
   { key: '/history', icon: <HistoryOutlined />, label: <Link to="/history">Histórico</Link> },
   { key: '/log-sessao', icon: <CodeOutlined />, label: <Link to="/log-sessao">Log da Sessão</Link> },

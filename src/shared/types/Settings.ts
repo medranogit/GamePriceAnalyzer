@@ -21,6 +21,14 @@ export interface PollingSettings {
 export interface AppSettings {
   steamId64: string | null
   autoStartOnBoot: boolean
+  /** Baixa capa/screenshots/thumbnails de trailer pra disco ao resolver metadata, pra não depender da
+   * Steam pra sempre exibi-las. Independente de `downloadTrailersLocally` (o vídeo em si). */
+  downloadImagesLocally: boolean
+  /** Baixa o pacote HLS completo (manifest + segmentos) de cada trailer pra disco — bem mais pesado que
+   * as imagens, por isso é um toggle separado do `downloadImagesLocally`. */
+  downloadTrailersLocally: boolean
+  /** Volume (0-100) com que os vídeos de trailer já começam a tocar. */
+  defaultVideoVolumePercent: number
   filters: FilterSettings
   polling: PollingSettings
 }
@@ -28,6 +36,9 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   steamId64: null,
   autoStartOnBoot: false,
+  downloadImagesLocally: false,
+  downloadTrailersLocally: false,
+  defaultVideoVolumePercent: 30,
   filters: {
     minDiscountPercent: 50,
     minPrice: null,

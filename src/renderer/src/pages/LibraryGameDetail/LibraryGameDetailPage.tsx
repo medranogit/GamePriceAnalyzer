@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Empty, message, Progress, Space, Tooltip, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   ExportOutlined,
+  FolderOpenOutlined,
   SyncOutlined,
   TrophyOutlined
 } from '@ant-design/icons'
@@ -119,6 +121,7 @@ export function LibraryGameDetailPage() {
   const { data: metadataList = [] } = useMetadataCache()
   const { data: achievements } = useGameAchievements(numericAppId)
   const resolveMetadata = useResolveGameMetadata()
+  const [openingMediaFolder, setOpeningMediaFolder] = useState(false)
 
   const game = games.find((g) => String(g.appId) === appId)
   const metadata = metadataList.find((m) => String(m.appId) === appId)
@@ -152,6 +155,17 @@ export function LibraryGameDetailPage() {
     })
   }
 
+  const handleOpenMediaFolder = async (): Promise<void> => {
+    setOpeningMediaFolder(true)
+    try {
+      await window.api.localMedia.openGameFolder(game.appId)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Falha ao abrir a pasta.')
+    } finally {
+      setOpeningMediaFolder(false)
+    }
+  }
+
   const sortedAchievements = achievements
     ? [...achievements.achievements].sort((a, b) => Number(b.achieved) - Number(a.achieved))
     : []
@@ -172,6 +186,15 @@ export function LibraryGameDetailPage() {
               onClick={handleResolveMetadata}
             >
               Buscar metadados da Steam
+            </Button>
+          </Tooltip>
+          <Tooltip title="Abre a pasta onde a mídia local desse jogo (capa, screenshots, trailers baixados) fica salva">
+            <Button
+              icon={<FolderOpenOutlined />}
+              loading={openingMediaFolder}
+              onClick={handleOpenMediaFolder}
+            >
+              Abrir pasta de mídia
             </Button>
           </Tooltip>
           <a href={steamStoreUrl} target="_blank" rel="noreferrer">

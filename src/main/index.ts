@@ -12,6 +12,13 @@ import { SteamWebApiClient } from './infrastructure/steam/SteamWebApiClient'
 import { SteamLibraryRepositoryImpl } from './infrastructure/steam/SteamLibraryRepositoryImpl'
 import { SteamStoreMetadataRepositoryImpl } from './infrastructure/steam/SteamStoreMetadataRepositoryImpl'
 import { ThrottledGameMetadataRepository } from './infrastructure/steam/ThrottledGameMetadataRepository'
+import { LocalImageCachingGameMetadataRepository } from './infrastructure/steam/LocalImageCachingGameMetadataRepository'
+import { LocalTrailerCachingGameMetadataRepository } from './infrastructure/steam/LocalTrailerCachingGameMetadataRepository'
+import { LocalImageCache } from './infrastructure/storage/LocalImageCache'
+import { LocalTrailerCache } from './infrastructure/storage/LocalTrailerCache'
+import { getLocalMediaRootDir } from './infrastructure/storage/localMediaPaths'
+import { registerImageProtocolPrivileges, handleImageProtocol } from './infrastructure/protocol/imageProtocol'
+import { registerVideoProtocolPrivileges, handleVideoProtocol } from './infrastructure/protocol/videoProtocol'
 import { SteamSearchRepositoryImpl } from './infrastructure/steam/SteamSearchRepositoryImpl'
 import { SteamWishlistRepositoryImpl } from './infrastructure/steam/SteamWishlistRepositoryImpl'
 import { SteamAchievementsRepositoryImpl } from './infrastructure/steam/SteamAchievementsRepositoryImpl'
@@ -45,6 +52,11 @@ let isQuitting = false
 
 // Necessário no Windows pra notificações mostrarem o nome/ícone certo do app.
 app.setAppUserModelId('com.gamepriceanalyzer.app')
+
+// Precisa rodar antes de app.whenReady() — a Electron não deixa registrar privilégios de scheme
+// customizado depois que o app já está pronto.
+registerImageProtocolPrivileges()
+registerVideoProtocolPrivileges()
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
@@ -132,7 +144,19 @@ async function bootstrap(): Promise<void> {
   const steamClient = new SteamWebApiClient(() => secretsStore.get('steamApiKey'))
   const steamLibraryRepository = new SteamLibraryRepositoryImpl(steamClient)
   const steamAchievementsRepository = new SteamAchievementsRepositoryImpl(steamClient)
-  const metadataRepository = new ThrottledGameMetadataRepository(new SteamStoreMetadataRepositoryImpl())
+  const localImageCache = new LocalImageCache()
+  handleImageProtocol(getLocalMediaRootDir())
+  const localTrailerCache = new LocalTrailerCache()
+  handleVideoProtocol(getLocalMediaRootDir())
+  const metadataRepository = new LocalTrailerCachingGameMetadataRepository(
+    new LocalImageCachingGameMetadataRepository(
+      new ThrottledGameMetadataRepository(new SteamStoreMetadataRepositoryImpl()),
+      settingsRepository,
+      localImageCache
+    ),
+    settingsRepository,
+    localTrailerCache
+  )
   const steamSearchRepository = new SteamSearchRepositoryImpl()
   const steamWishlistRepository = new SteamWishlistRepositoryImpl()
   const priceHistoryRepository = new JsonPriceHistoryRepository()

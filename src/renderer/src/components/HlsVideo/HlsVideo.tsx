@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import Hls from 'hls.js'
+import { useSettings } from '@renderer/hooks/useSettings'
 
 interface HlsVideoProps {
   src: string
@@ -19,15 +20,20 @@ function isHlsManifestUrl(url: string): boolean {
   }
 }
 
-const INITIAL_VOLUME = 0.3
+const DEFAULT_INITIAL_VOLUME_PERCENT = 30
 
 export function HlsVideo({ src, poster, className, autoPlay = false }: HlsVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const { data: settings } = useSettings()
+  const initialVolume = (settings?.defaultVideoVolumePercent ?? DEFAULT_INITIAL_VOLUME_PERCENT) / 100
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.volume = initialVolume
+  }, [initialVolume])
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    video.volume = INITIAL_VOLUME
 
     if (!isHlsManifestUrl(src)) {
       video.src = src

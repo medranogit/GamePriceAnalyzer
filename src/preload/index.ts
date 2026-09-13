@@ -57,6 +57,10 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.metadataResolveOne, appId),
     getAll: (): Promise<GameMetadata[]> => ipcRenderer.invoke(IPC_CHANNELS.metadataGetAll)
   },
+  localMedia: {
+    openGameFolder: (appId: number): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.localMediaOpenGameFolder, appId)
+  },
   achievements: {
     get: (appId: number): Promise<GameAchievements | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.achievementsGet, appId)

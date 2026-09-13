@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
-import { Image, Modal, Tag, Typography } from 'antd'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { Modal, Tag, Typography } from 'antd'
 import {
   CalendarOutlined,
-  CloseOutlined,
+  CaretLeftFilled,
+  CaretRightFilled,
   CodeOutlined,
   LeftOutlined,
   PlayCircleFilled,
@@ -12,32 +13,15 @@ import {
   TeamOutlined
 } from '@ant-design/icons'
 import styled from 'styled-components'
-import { GameCover } from '@renderer/components/GameCover/GameCover'
 import { HlsVideo } from '@renderer/components/HlsVideo/HlsVideo'
 import { formatCount } from '@renderer/lib/formatters'
 import type { GameTrailer } from '@shared/types'
 
 const { Title, Text } = Typography
 
-const Hero = styled.div`
-  position: relative;
-  margin-bottom: 16px;
-`
-
-const HeroScrim = styled.div`
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  background: linear-gradient(to top, rgba(15, 17, 21, 0.95), rgba(15, 17, 21, 0) 55%);
-`
-
-const HeroTitle = styled(Title)`
+const PageTitle = styled(Title)`
   &&& {
-    position: absolute;
-    left: 20px;
-    bottom: 14px;
-    margin: 0;
-    color: #fff;
+    margin: 0 0 12px;
   }
 `
 
@@ -135,33 +119,48 @@ const CarouselContainer = styled.div`
   background: ${({ theme }) => theme.colors.surfaceRaised};
 `
 
-const CarouselSlide = styled.div<{ $visible: boolean }>`
-  display: ${({ $visible }) => ($visible ? 'block' : 'none')};
-  position: relative;
+const CarouselTrack = styled.div`
+  display: flex;
+  gap: 8px;
   width: 100%;
   height: 100%;
 `
 
+const CarouselSlide = styled.div`
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+`
+
 const CarouselArrow = styled.button<{ $side: 'left' | 'right' }>`
   position: absolute;
-  top: 50%;
-  ${({ $side }) => ($side === 'left' ? 'left: 8px;' : 'right: 8px;')}
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  top: 0;
+  bottom: 0;
+  ${({ $side }) => ($side === 'left' ? 'left: 0;' : 'right: 0;')}
+  width: 40px;
   border: none;
   padding: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 2;
+  transition: background-color 0.15s ease;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  &:disabled {
+    background: rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: default;
   }
 `
 
@@ -209,29 +208,54 @@ const SlidePlayIcon = styled(PlayCircleFilled)`
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.6));
 `
 
-const ModalVideoWrapper = styled.div`
+const LightboxWrapper = styled.div`
   position: relative;
+  padding: 24px 64px;
+  background: #000;
+  border-radius: 12px;
 `
 
-const ModalVideo = styled(HlsVideo)`
+const LightboxVideo = styled(HlsVideo)`
   display: block;
   width: 100%;
-  max-height: 70vh;
+  max-height: 65vh;
   background: #000;
+  border-radius: 8px;
 `
 
-const ModalCloseIcon = styled(CloseOutlined)`
+const LightboxImage = styled.img`
+  display: block;
+  width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  background: #000;
+  border-radius: 8px;
+`
+
+const LightboxArrow = styled.button<{ $side: 'left' | 'right' }>`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  ${({ $side }) => ($side === 'left' ? 'left: 0;' : 'right: 0;')}
+  width: 64px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  cursor: pointer;
+  z-index: 2;
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.8);
+  &:hover:not(:disabled) {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.25;
+    cursor: default;
   }
 `
 
@@ -244,36 +268,86 @@ function metacriticColor(score: number): string {
   return '#f85149'
 }
 
+const CAROUSEL_DEFAULT_BREAKPOINT_WIDTH = 480
+
+/** Mede a largura real do próprio carrossel (não a da janela) — assim ele decide quantos itens mostrar
+ * por vez com base no espaço que realmente tem disponível, correto tanto no grid de 2 colunas quanto numa
+ * coluna só (onde o carrossel de imagens pode mostrar mais itens por vez, por ter o dobro do espaço). */
+function useCarouselItemsPerView(
+  containerRef: RefObject<HTMLDivElement | null>,
+  smallItemsPerView: number,
+  largeItemsPerView: number,
+  breakpointWidth: number
+): number {
+  const [itemsPerView, setItemsPerView] = useState(smallItemsPerView)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver(([entry]) => {
+      setItemsPerView(entry.contentRect.width >= breakpointWidth ? largeItemsPerView : smallItemsPerView)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [containerRef, smallItemsPerView, largeItemsPerView, breakpointWidth])
+
+  return itemsPerView
+}
+
 interface SimpleCarouselProps<T> {
   items: T[]
   keyOf: (item: T) => string
   renderItem: (item: T) => ReactNode
+  /** Quantos itens mostrar por vez em tela pequena / grande, e a largura (px) do próprio carrossel que
+   * separa as duas — por padrão 1 em tela pequena, 2 em tela grande. */
+  smallItemsPerView?: number
+  largeItemsPerView?: number
+  breakpointWidth?: number
 }
 
 /**
  * Carrossel próprio em vez do `Carousel` do antd — ele quebrava dentro do grid de 2 colunas (renderizava
- * todos os slides empilhados um embaixo do outro, sem esconder os inativos). Só um slide fica montado
- * como visível por vez (display none/block), sem depender de nenhuma lib externa de posicionamento.
+ * todos os slides empilhados um embaixo do outro, sem esconder os inativos). Navega por página, sem
+ * depender de nenhuma lib externa.
  */
-function SimpleCarousel<T>({ items, keyOf, renderItem }: SimpleCarouselProps<T>) {
-  const [index, setIndex] = useState(0)
-  const activeIndex = index < items.length ? index : 0
+function SimpleCarousel<T>({
+  items,
+  keyOf,
+  renderItem,
+  smallItemsPerView = 1,
+  largeItemsPerView = 2,
+  breakpointWidth = CAROUSEL_DEFAULT_BREAKPOINT_WIDTH
+}: SimpleCarouselProps<T>) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const itemsPerView = useCarouselItemsPerView(
+    containerRef,
+    smallItemsPerView,
+    largeItemsPerView,
+    breakpointWidth
+  )
+  const pageCount = Math.max(1, Math.ceil(items.length / itemsPerView))
+  const [page, setPage] = useState(0)
+  const activePage = page < pageCount ? page : 0
+  const startIndex = activePage * itemsPerView
+  const visibleItems = items.slice(startIndex, startIndex + itemsPerView)
 
   return (
-    <CarouselContainer>
-      {items.map((item, i) => (
-        <CarouselSlide key={keyOf(item)} $visible={i === activeIndex}>
-          {renderItem(item)}
-        </CarouselSlide>
-      ))}
+    <CarouselContainer ref={containerRef}>
+      <CarouselTrack>
+        {visibleItems.map((item) => (
+          <CarouselSlide key={keyOf(item)}>{renderItem(item)}</CarouselSlide>
+        ))}
+      </CarouselTrack>
 
-      {items.length > 1 && (
+      {pageCount > 1 && (
         <>
           <CarouselArrow
             type="button"
             $side="left"
             aria-label="Anterior"
-            onClick={() => setIndex((activeIndex - 1 + items.length) % items.length)}
+            disabled={activePage === 0}
+            onClick={() => setPage(activePage - 1)}
           >
             <LeftOutlined />
           </CarouselArrow>
@@ -281,18 +355,19 @@ function SimpleCarousel<T>({ items, keyOf, renderItem }: SimpleCarouselProps<T>)
             type="button"
             $side="right"
             aria-label="Próximo"
-            onClick={() => setIndex((activeIndex + 1) % items.length)}
+            disabled={activePage === pageCount - 1}
+            onClick={() => setPage(activePage + 1)}
           >
             <RightOutlined />
           </CarouselArrow>
           <CarouselDots>
-            {items.map((item, i) => (
+            {Array.from({ length: pageCount }, (_, i) => (
               <CarouselDot
-                key={keyOf(item)}
+                key={i}
                 type="button"
-                aria-label={`Ir pro item ${i + 1}`}
-                $active={i === activeIndex}
-                onClick={() => setIndex(i)}
+                aria-label={`Ir pra página ${i + 1}`}
+                $active={i === activePage}
+                onClick={() => setPage(i)}
               />
             ))}
           </CarouselDots>
@@ -301,6 +376,8 @@ function SimpleCarousel<T>({ items, keyOf, renderItem }: SimpleCarouselProps<T>)
     </CarouselContainer>
   )
 }
+
+type MediaItem = { type: 'video'; trailer: GameTrailer } | { type: 'image'; url: string }
 
 interface GameHeroProps {
   title: string
@@ -329,18 +406,26 @@ export function GameHero({
   trailers,
   screenshots
 }: GameHeroProps) {
-  const [activeTrailerIndex, setActiveTrailerIndex] = useState<number | null>(null)
-  const activeTrailer = activeTrailerIndex !== null ? trailers[activeTrailerIndex] : null
   const showPublishers = publishers.length > 0 && publishers.join(',') !== developers.join(',')
   const galleryImages = coverUrl ? [coverUrl, ...screenshots.filter((url) => url !== coverUrl)] : screenshots
 
+  const mediaItems: MediaItem[] = [
+    ...trailers.map((trailer): MediaItem => ({ type: 'video', trailer })),
+    ...galleryImages.map((url): MediaItem => ({ type: 'image', url }))
+  ]
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null)
+  const activeMedia = activeMediaIndex !== null ? mediaItems[activeMediaIndex] : null
+
+  const openTrailer = (trailer: GameTrailer): void => {
+    setActiveMediaIndex(mediaItems.findIndex((item) => item.type === 'video' && item.trailer === trailer))
+  }
+  const openImage = (url: string): void => {
+    setActiveMediaIndex(mediaItems.findIndex((item) => item.type === 'image' && item.url === url))
+  }
+
   return (
     <>
-      <Hero>
-        <GameCover url={coverUrl} height={260} radius={10} />
-        <HeroScrim />
-        <HeroTitle level={2}>{title}</HeroTitle>
-      </Hero>
+      <PageTitle level={2}>{title}</PageTitle>
 
       {(developers.length > 0 || showPublishers) && (
         <CreditsColumn>
@@ -414,7 +499,7 @@ export function GameHero({
                 renderItem={(trailer) => (
                   <>
                     <SlideThumbnail src={trailer.thumbnailUrl ?? coverUrl} alt={title} />
-                    <SlidePlayOverlay onClick={() => setActiveTrailerIndex(trailers.indexOf(trailer))}>
+                    <SlidePlayOverlay onClick={() => openTrailer(trailer)}>
                       <SlidePlayIcon />
                     </SlidePlayOverlay>
                   </>
@@ -426,66 +511,72 @@ export function GameHero({
           {galleryImages.length > 0 && (
             <div>
               <GalleryColumnTitle>Imagens</GalleryColumnTitle>
-              <Image.PreviewGroup items={galleryImages}>
-                <SimpleCarousel
-                  items={galleryImages}
-                  keyOf={(url) => url}
-                  renderItem={(url) => (
-                    <Image
-                      src={url}
-                      width="100%"
-                      height={220}
-                      style={{ objectFit: 'cover' }}
-                      wrapperStyle={{ width: '100%', height: '100%' }}
-                    />
-                  )}
-                />
-              </Image.PreviewGroup>
+              <SimpleCarousel
+                items={galleryImages}
+                keyOf={(url) => url}
+                renderItem={(url) => (
+                  <SlideThumbnail
+                    src={url}
+                    alt={title}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => openImage(url)}
+                  />
+                )}
+                {...(trailers.length === 0
+                  ? { smallItemsPerView: 2, largeItemsPerView: 4, breakpointWidth: 900 }
+                  : {})}
+              />
             </div>
           )}
         </GalleryColumns>
       )}
 
       <Modal
-        open={activeTrailer !== null}
-        onCancel={() => setActiveTrailerIndex(null)}
+        open={activeMedia !== null}
+        onCancel={() => setActiveMediaIndex(null)}
         footer={null}
-        width={800}
+        width={900}
         destroyOnClose
         centered
-        closeIcon={<ModalCloseIcon />}
+        closable={false}
+        styles={{ content: { padding: 0, background: 'transparent', boxShadow: 'none' } }}
       >
-        {activeTrailer && activeTrailerIndex !== null && (
-          <ModalVideoWrapper>
-            <ModalVideo
-              key={activeTrailer.url}
-              src={activeTrailer.url}
-              poster={activeTrailer.thumbnailUrl ?? coverUrl}
-              autoPlay
-            />
-            {trailers.length > 1 && (
+        {activeMedia && activeMediaIndex !== null && (
+          <LightboxWrapper>
+            {activeMedia.type === 'video' ? (
+              <LightboxVideo
+                key={activeMedia.trailer.url}
+                src={activeMedia.trailer.url}
+                poster={activeMedia.trailer.thumbnailUrl ?? coverUrl}
+                autoPlay
+              />
+            ) : (
+              <LightboxImage src={activeMedia.url} alt={title} />
+            )}
+
+            {mediaItems.length > 1 && (
               <>
-                <CarouselArrow
+                <LightboxArrow
                   type="button"
                   $side="left"
-                  aria-label="Trailer anterior"
-                  onClick={() =>
-                    setActiveTrailerIndex((activeTrailerIndex - 1 + trailers.length) % trailers.length)
-                  }
+                  aria-label="Mídia anterior"
+                  disabled={activeMediaIndex === 0}
+                  onClick={() => setActiveMediaIndex(activeMediaIndex - 1)}
                 >
-                  <LeftOutlined />
-                </CarouselArrow>
-                <CarouselArrow
+                  <CaretLeftFilled />
+                </LightboxArrow>
+                <LightboxArrow
                   type="button"
                   $side="right"
-                  aria-label="Próximo trailer"
-                  onClick={() => setActiveTrailerIndex((activeTrailerIndex + 1) % trailers.length)}
+                  aria-label="Próxima mídia"
+                  disabled={activeMediaIndex === mediaItems.length - 1}
+                  onClick={() => setActiveMediaIndex(activeMediaIndex + 1)}
                 >
-                  <RightOutlined />
-                </CarouselArrow>
+                  <CaretRightFilled />
+                </LightboxArrow>
               </>
             )}
-          </ModalVideoWrapper>
+          </LightboxWrapper>
         )}
       </Modal>
     </>
