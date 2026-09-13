@@ -52,7 +52,7 @@ let mainWindow: BrowserWindow | null = null
 let isQuitting = false
 
 // Necessário no Windows pra notificações mostrarem o nome/ícone certo do app.
-app.setAppUserModelId('com.gamepriceanalyzer.app')
+app.setAppUserModelId('com.hubgamecenter.app')
 
 // Precisa rodar antes de app.whenReady() — a Electron não deixa registrar privilégios de scheme
 // customizado depois que o app já está pronto.
@@ -80,7 +80,7 @@ function createMainWindow(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     icon: getAppIconPath(),
-    title: `GamePriceAnalyzer v${app.getVersion()}`,
+    title: `HubGame Center v${app.getVersion()}`,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -323,6 +323,6 @@ async function bootstrap(): Promise<void> {
     /* no-op de propósito */
   })
 
-  logger.info('GamePriceAnalyzer iniciado.')
-  sessionLogRepository.log('info', 'GamePriceAnalyzer iniciado.')
+  logger.info('HubGame Center iniciado.')
+  sessionLogRepository.log('info', 'HubGame Center iniciado.')
 }

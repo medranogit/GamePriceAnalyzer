@@ -84,7 +84,7 @@ export class ElectronNotificationService implements NotificationService {
   private showBatch(deals: GameDeal[]): void {
     const notification = new Notification({
       title: `🎮 ${deals.length} novas ofertas encontradas`,
-      body: 'Abra o GamePriceAnalyzer pra conferir.',
+      body: 'Abra o HubGame Center pra conferir.',
       icon: nativeImage.createFromPath(getAppIconPath()),
       silent: false
     })

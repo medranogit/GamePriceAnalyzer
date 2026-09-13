@@ -1,8 +1,8 @@
 {
-  "name": "game-price-analyzer",
+  "name": "hubgame-center",
   "version": "1.3.0",
   "private": true,
-  "description": "GamePriceAnalyzer",
+  "description": "HubGame Center",
   "author": {
     "name": "Vinícius Medrano",
     "email": "viniciusmedprofi@hotmail.com"

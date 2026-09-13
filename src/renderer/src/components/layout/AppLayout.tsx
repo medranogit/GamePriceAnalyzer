@@ -70,7 +70,7 @@ export function AppLayout() {
     <Layout style={{ height: '100vh' }}>
       <Sider width={220} theme="dark" style={{ borderRight: `1px solid ${appTheme.colors.border}` }}>
         <SiderInner>
-          <Brand>GamePriceAnalyzer</Brand>
+          <Brand>HubGame Center</Brand>
           <MenuArea>
             <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
           </MenuArea>

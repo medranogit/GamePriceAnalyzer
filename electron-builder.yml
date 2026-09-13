@@ -1,5 +1,5 @@
-appId: com.gamepriceanalyzer.app
-productName: GamePriceAnalyzer
+appId: com.hubgamecenter.app
+productName: HubGame Center
 directories:
   buildResources: resources
   output: release

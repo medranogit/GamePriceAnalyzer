@@ -16,7 +16,7 @@ export class TrayController {
       : join(process.resourcesPath, 'tray-icon.png')
 
     this.tray = new Tray(nativeImage.createFromPath(iconPath))
-    this.tray.setToolTip('GamePriceAnalyzer')
+    this.tray.setToolTip('HubGame Center')
     this.tray.setContextMenu(this.buildMenu())
     this.tray.on('click', () => this.toggleWindow())
   }

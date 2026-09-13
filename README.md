@@ -1,4 +1,4 @@
-# GamePriceAnalyzer
+# HubGame Center
 
 Aplicativo desktop (Windows) que fica em segundo plano monitorando sua **wishlist da Steam** e cruzando
 os preços com o [GG.deals](https://gg.deals), pra avisar automaticamente quando alguma oferta ficar boa —
