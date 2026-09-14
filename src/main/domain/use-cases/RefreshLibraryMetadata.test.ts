@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GameDeal, GameMetadata, OwnedGame } from '@shared/types'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { RefreshLibraryMetadata } from './RefreshLibraryMetadata'
 
@@ -14,6 +15,10 @@ function makeSessionLogRepository(): SessionLogRepository {
     getEntries: () => [],
     deleteSession: vi.fn()
   }
+}
+
+function makeHistoryRepository(): HistoryRepository {
+  return { getEvents: () => [], addEvent: vi.fn(), removeEvents: vi.fn() }
 }
 
 function makeOwnedGame(appId: number): OwnedGame {
@@ -83,10 +88,12 @@ describe('RefreshLibraryMetadata', () => {
     })
     const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
     const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const historyRepository = makeHistoryRepository()
     const useCase = new RefreshLibraryMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      historyRepository
     )
 
     const resultPromise = useCase.execute()
@@ -97,6 +104,11 @@ describe('RefreshLibraryMetadata', () => {
     expect(fetchMetadata).toHaveBeenCalledWith(1)
     expect(fetchMetadata).toHaveBeenCalledWith(2)
     expect(result.refreshed).toBe(2)
+    expect(historyRepository.addEvent).toHaveBeenCalledWith(
+      'metadata_refresh',
+      expect.stringContaining('Metadata sobrescrita'),
+      1
+    )
   })
 
   it('sobrescreve capa/sinopse antigas na oferta cacheada com o valor mais recente da Steam', async () => {
@@ -139,7 +151,8 @@ describe('RefreshLibraryMetadata', () => {
     const useCase = new RefreshLibraryMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -162,7 +175,12 @@ describe('RefreshLibraryMetadata', () => {
       return makeMetadata(appId)
     })
     const metadataRepository: GameMetadataRepository = { fetchMetadata }
-    useCase = new RefreshLibraryMetadata(cacheRepository, metadataRepository, makeSessionLogRepository())
+    useCase = new RefreshLibraryMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository()
+    )
 
     const firstRunPromise = useCase.execute()
     await vi.runAllTimersAsync()
@@ -193,7 +211,8 @@ describe('RefreshLibraryMetadata', () => {
     const useCase = new RefreshLibraryMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const first = useCase.execute()

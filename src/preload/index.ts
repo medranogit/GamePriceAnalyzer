@@ -84,7 +84,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.secretsSetGGDealsApiKey, value)
   },
   history: {
-    getEvents: (): Promise<HistoryEvent[]> => ipcRenderer.invoke(IPC_CHANNELS.historyGetEvents)
+    getEvents: (): Promise<HistoryEvent[]> => ipcRenderer.invoke(IPC_CHANNELS.historyGetEvents),
+    removeEvents: (ids: string[]): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.historyRemoveEvents, ids)
   },
   sessionLog: {
     getSessions: (): Promise<SessionLogSession[]> => ipcRenderer.invoke(IPC_CHANNELS.sessionLogGetSessions),

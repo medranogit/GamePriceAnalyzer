@@ -217,6 +217,16 @@ function TimerStatusCard({ timer }: { timer: TimerStatus }) {
     updateSettings.mutate({ polling: { ...settings.polling, [intervalField]: value } })
   }
 
+  const handleMaxDealsPerCycleChange = (value: number | null): void => {
+    if (!value || !settings) return
+    updateSettings.mutate({ polling: { ...settings.polling, maxDealsPerCycle: value } })
+  }
+
+  const handleDealsBatchCountChange = (value: number | null): void => {
+    if (!value || !settings) return
+    updateSettings.mutate({ polling: { ...settings.polling, dealsBatchCount: value } })
+  }
+
   const forceOfertas = async (): Promise<void> => {
     setForcingOfertas(true)
     try {
@@ -311,6 +321,34 @@ function TimerStatusCard({ timer }: { timer: TimerStatus }) {
               style={{ width: 90 }}
             />
           </Tooltip>
+          {timer.key === 'ofertas' && (
+            <Tooltip title="Máximo de AppIDs consultados no GG.deals por ciclo automático — deixa uma folga do limite de 1000 registros/hora da conta pra forçar buscas manuais sem estourar a cota. O que passar do limite entra primeiro no próximo ciclo.">
+              <InputNumber
+                size="small"
+                min={50}
+                max={1000}
+                step={50}
+                value={settings?.polling.maxDealsPerCycle}
+                onChange={handleMaxDealsPerCycleChange}
+                addonAfter="jogos"
+                style={{ width: 115 }}
+              />
+            </Tooltip>
+          )}
+          {timer.key === 'ofertas' && (
+            <Tooltip title="Em quantos lotes dividir os jogos por ciclo — cada lote vira uma chamada HTTP separada ao GG.deals (o tamanho de cada um é calculado automaticamente e nunca passa do limite real da API, 100). Mais lotes = mais granularidade na Fila de Chamadas/log, mesma cota total consumida.">
+              <InputNumber
+                size="small"
+                min={1}
+                max={5}
+                step={1}
+                value={settings?.polling.dealsBatchCount}
+                onChange={handleDealsBatchCountChange}
+                addonAfter="lotes"
+                style={{ width: 105 }}
+              />
+            </Tooltip>
+          )}
           <Tooltip title={TIMER_FORCE_TOOLTIP[timer.key]}>
             <Button size="small" icon={<SyncOutlined />} loading={isForcing} onClick={handleForceClick} />
           </Tooltip>

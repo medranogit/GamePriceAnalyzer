@@ -5,7 +5,14 @@ import type { SessionLogRepository } from '../../domain/repositories/SessionLogR
 import type { QueueActivityTracker } from '../../domain/QueueActivityTracker'
 
 const BASE_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/'
-const MAX_IDS_PER_REQUEST = 100
+/** Limite real da API do GG.deals por chamada HTTP — não é configurável, é um teto de segurança. */
+const GG_DEALS_HARD_LIMIT = 100
+/** Pausa entre lotes do mesmo ciclo — só entre um e outro, nunca depois do último. */
+const BATCH_DELAY_MS = 5_000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 interface RawPrices {
   currentRetail: string | null
@@ -30,6 +37,10 @@ interface BatchResult {
   deals: GameDeal[]
   /** Quantos registros ainda cabem na janela atual, segundo a própria API (null se o header não veio). */
   remaining: number | null
+  /** true só em HTTP 429 de verdade — diferente de uma resposta 200 sem dados pra nenhum AppID do lote
+   * (GG.deals simplesmente não rastreia esses jogos). Um lote rate-limited não conta como processado
+   * (fica pendente pra próxima busca); um lote vazio-mas-bem-sucedido conta (ver FetchOwnableDeals). */
+  rateLimited: boolean
 }
 
 export interface PricesResult {
@@ -75,7 +86,8 @@ export class GGDealsApiClient {
 
   async getPricesBySteamAppIds(
     appIds: number[],
-    onBatch?: (deals: GameDeal[]) => Promise<void> | void
+    batchSize: number,
+    onBatch?: (deals: GameDeal[], requestedAppIds: number[]) => Promise<void> | void
   ): Promise<PricesResult> {
     const apiKey = this.apiKeyProvider()
     if (!apiKey) {
@@ -83,14 +95,17 @@ export class GGDealsApiClient {
     }
     if (appIds.length === 0) return { deals: [], processedAppIdCount: 0 }
 
-    const batches = chunk(appIds, MAX_IDS_PER_REQUEST)
+    // Nunca confia cegamente no valor configurado — o limite real da API é fixo, então clampa aqui
+    // como última linha de defesa, independente do que vier de Configurações.
+    const effectiveBatchSize = Math.min(batchSize, GG_DEALS_HARD_LIMIT)
+    const batches = chunk(appIds, effectiveBatchSize)
     const deals: GameDeal[] = []
     let processedAppIdCount = 0
     let lastResult: BatchResult | null = null
 
     this.sessionLogRepository.log(
       'info',
-      `Consultando GG.deals: ${appIds.length} jogo(s) em ${batches.length} lote(s) de até ${MAX_IDS_PER_REQUEST}.`
+      `Consultando GG.deals: ${appIds.length} jogo(s) em ${batches.length} lote(s) de até ${effectiveBatchSize}.`
     )
 
     for (let i = 0; i < batches.length; i++) {
@@ -117,14 +132,26 @@ export class GGDealsApiClient {
         if (queueId !== undefined) this.tracker?.finish(queueId)
       }
 
+      if (result.rateLimited) {
+        const remainingAppIds = appIds.length - processedAppIdCount
+        const message = `GG.deals retornou HTTP 429 (rate limit) no lote ${i + 1}/${batches.length} — ${remainingAppIds} jogo(s) ficam pra próxima busca.`
+        logger.warn(message)
+        this.sessionLogRepository.log('warn', message)
+        break
+      }
+
       deals.push(...result.deals)
       processedAppIdCount += batch.length
       this.sessionLogRepository.log(
         'success',
         `Lote ${i + 1}/${batches.length} concluído: ${result.deals.length} preço(s) recebido(s).`
       )
-      await onBatch?.(result.deals)
+      await onBatch?.(result.deals, batch)
       lastResult = result
+
+      if (i < batches.length - 1) {
+        await sleep(BATCH_DELAY_MS)
+      }
     }
 
     return { deals, processedAppIdCount }
@@ -145,9 +172,7 @@ export class GGDealsApiClient {
     const remaining = readRemaining(res)
 
     if (res.status === 429) {
-      logger.warn('GG.deals rate limit atingido (429), pulando esse lote.')
-      this.sessionLogRepository.log('warn', 'GG.deals retornou HTTP 429 (rate limit atingido), lote pulado.')
-      return { deals: [], remaining: 0 }
+      return { deals: [], remaining: 0, rateLimited: true }
     }
     if (!res.ok) {
       this.sessionLogRepository.log('error', `GG.deals prices falhou: HTTP ${res.status}`)
@@ -155,7 +180,7 @@ export class GGDealsApiClient {
     }
 
     const body = (await res.json()) as RawResponse
-    if (!body.success || !body.data) return { deals: [], remaining }
+    if (!body.success || !body.data) return { deals: [], remaining, rateLimited: false }
 
     const deals: GameDeal[] = []
     for (const [appIdKey, entry] of Object.entries(body.data)) {
@@ -185,6 +210,6 @@ export class GGDealsApiClient {
         priceUpdatedAt: new Date().toISOString()
       })
     }
-    return { deals, remaining }
+    return { deals, remaining, rateLimited: false }
   }
 }

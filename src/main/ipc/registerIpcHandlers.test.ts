@@ -36,7 +36,7 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       getPendingLibraryRefreshAppIds: () => [],
       setPendingLibraryRefreshAppIds: noop
     },
-    historyRepository: { getEvents: () => [], addEvent: noop },
+    historyRepository: { getEvents: () => [], addEvent: noop, removeEvents: noop },
     notificationService: { notifyDeal, notifyDealsBatch: noop, dismissAll: noop },
     notifiedDealsRepository: {
       alreadyNotifiedForPrice: () => false,

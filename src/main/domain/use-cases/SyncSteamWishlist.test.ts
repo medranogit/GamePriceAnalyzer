@@ -39,7 +39,7 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
 }
 
 function makeHistoryRepository(): HistoryRepository {
-  return { getEvents: () => [], addEvent: vi.fn() }
+  return { getEvents: () => [], addEvent: vi.fn(), removeEvents: vi.fn() }
 }
 
 describe('SyncSteamWishlist', () => {
@@ -122,6 +122,13 @@ describe('SyncSteamWishlist', () => {
     expect(historyRepository.addEvent).toHaveBeenCalledWith(
       'wishlist_import',
       expect.stringContaining('1 jogos (1 novos)')
+    )
+    // Evento por-jogo com o nome e o appId — usado pela tela de Histórico pra listar
+    // individualmente quem entrou na wishlist, não só o total agregado.
+    expect(historyRepository.addEvent).toHaveBeenCalledWith(
+      'wishlist_import',
+      'Novo na wishlist: "Novo Jogo".',
+      999
     )
   })
 

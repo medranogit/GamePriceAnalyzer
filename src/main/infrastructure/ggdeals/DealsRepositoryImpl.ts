@@ -7,8 +7,9 @@ export class DealsRepositoryImpl implements DealsRepository {
 
   async fetchDealsBySteamAppIds(
     appIds: number[],
-    onBatch?: (deals: GameDeal[]) => Promise<void> | void
+    batchSize: number,
+    onBatch?: (deals: GameDeal[], requestedAppIds: number[]) => Promise<void> | void
   ): Promise<DealsPricesResult> {
-    return this.client.getPricesBySteamAppIds(appIds, onBatch)
+    return this.client.getPricesBySteamAppIds(appIds, batchSize, onBatch)
   }
 }

@@ -126,6 +126,10 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.historyGetEvents, () => deps.historyRepository.getEvents())
 
+  ipcMain.handle(IPC_CHANNELS.historyRemoveEvents, (_event, ids: string[]) =>
+    deps.historyRepository.removeEvents(ids)
+  )
+
   ipcMain.handle(IPC_CHANNELS.sessionLogGetSessions, () => deps.sessionLogRepository.listSessions())
 
   ipcMain.handle(IPC_CHANNELS.sessionLogGetEntries, (_event, sessionId: string) =>

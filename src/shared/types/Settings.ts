@@ -12,6 +12,16 @@ export interface PollingSettings {
   wishlistSyncIntervalMinutes: number
   librarySyncIntervalMinutes: number
   metadataBackfillIntervalMinutes: number
+  /** Máximo de AppIDs buscados no GG.deals por ciclo automático de Ofertas — deixa uma folga do limite
+   * de 1000 registros/hora da conta pra forçar buscas manuais (Fila de Chamadas) sem estourar a cota. O
+   * que passar do limite fica pendente e entra primeiro no próximo ciclo. */
+  maxDealsPerCycle: number
+  /** Em quantos lotes dividir `maxDealsPerCycle` — o tamanho de cada lote é calculado a partir disso
+   * (`maxDealsPerCycle` ÷ `dealsBatchCount`, arredondado pra cima) e sempre clampado no cliente ao
+   * limite real da API (100), então nunca estoura mesmo com poucos lotes configurados pra um ciclo
+   * grande. Mais lotes = mais chamadas HTTP (mais granularidade na Fila de Chamadas/log), mesma cota
+   * total consumida por ciclo. */
+  dealsBatchCount: number
   quietHoursStart: string | null
   quietHoursEnd: string | null
   /** Desconto mínimo (efetivo ou da Steam) pra disparar notificação — independente do filtro de exibição do Dashboard. */
@@ -54,6 +64,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     wishlistSyncIntervalMinutes: 120,
     librarySyncIntervalMinutes: 30,
     metadataBackfillIntervalMinutes: 20,
+    maxDealsPerCycle: 950,
+    dealsBatchCount: 1,
     quietHoursStart: null,
     quietHoursEnd: null,
     notifyMinDiscountPercent: 50,

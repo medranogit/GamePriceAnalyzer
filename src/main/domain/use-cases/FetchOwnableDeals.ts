@@ -4,9 +4,15 @@ import type { DealsRepository } from '../repositories/DealsRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
 import type { PriceHistoryRepository } from '../repositories/PriceHistoryRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
+import type { SettingsRepository } from '../repositories/SettingsRepository'
 import { isMetadataIncomplete } from '../isMetadataIncomplete'
 import { describeMetadata } from '../describeMetadata'
+
+function formatDealPrice(deal: GameDeal, price: number | null): string {
+  return price === null ? 'sem oferta' : `${deal.currency ?? ''} ${price.toFixed(2)}`.trim()
+}
 
 /**
  * Orquestra o fluxo principal do app: pega os AppIDs da wishlist, cruza
@@ -32,7 +38,9 @@ export class FetchOwnableDeals {
     private readonly metadataRepository: GameMetadataRepository,
     private readonly priceHistoryRepository: PriceHistoryRepository,
     private readonly cacheRepository: AppCacheRepository,
-    private readonly sessionLogRepository: SessionLogRepository
+    private readonly sessionLogRepository: SessionLogRepository,
+    private readonly historyRepository: HistoryRepository,
+    private readonly settingsRepository: SettingsRepository
   ) {}
 
   async execute(): Promise<GameDeal[]> {
@@ -63,25 +71,48 @@ export class FetchOwnableDeals {
       .getPendingDealsAppIds()
       .filter((appId) => candidateSet.has(appId))
     const isResuming = filteredPending.length > 0
-    const toFetch = isResuming ? filteredPending : candidateAppIds
-    this.cacheRepository.setPendingDealsAppIds(toFetch)
+    const fullToFetch = isResuming ? filteredPending : candidateAppIds
+
+    // Limite de AppIDs por ciclo automático (configurável, `polling.maxDealsPerCycle`) — deixa uma
+    // reserva do limite de 1000 registros/hora da conta pra forçar buscas manuais sem estourar a cota.
+    // Quem passa do limite fica pendente e entra primeiro no próximo ciclo, igual a uma pausa por
+    // rate limit — não precisa de lógica extra além de reaproveitar `pendingDealsAppIds`.
+    const { maxDealsPerCycle, dealsBatchCount } = this.settingsRepository.get().polling
+    // Tamanho de cada lote derivado de "em quantos lotes dividir" — arredondado pra cima, e sempre
+    // clampado ao limite real da API (100) dentro do GGDealsApiClient, então nunca estoura mesmo com
+    // `dealsBatchCount` baixo (ex: 1) num ciclo grande.
+    const dealsBatchSize = Math.ceil(maxDealsPerCycle / Math.max(1, dealsBatchCount))
+    const toFetch = fullToFetch.slice(0, maxDealsPerCycle)
+    const deferredByLimit = fullToFetch.slice(maxDealsPerCycle)
+    this.cacheRepository.setPendingDealsAppIds([...toFetch, ...deferredByLimit])
 
     if (isResuming) {
       this.sessionLogRepository.log(
         'warn',
-        `Retomando busca de ofertas: ${toFetch.length}/${candidateAppIds.length} jogo(s) ainda faltam (interrompida ou limitada pelo rate limit do ciclo anterior).`
+        `Retomando busca de ofertas: ${fullToFetch.length}/${candidateAppIds.length} jogo(s) ainda faltam (interrompida ou limitada pelo rate limit do ciclo anterior).`
+      )
+    }
+    if (deferredByLimit.length > 0) {
+      this.sessionLogRepository.log(
+        'info',
+        `Limite de ${maxDealsPerCycle} jogo(s) por ciclo: ${deferredByLimit.length} ficam pra próxima busca (reserva de cota pra buscas manuais).`
       )
     }
 
     const pending = new Set(toFetch)
+    let priceChangedCount = 0
     const { processedAppIdCount } = await this.dealsRepository.fetchDealsBySteamAppIds(
       toFetch,
-      async (batchDeals) => {
-        await this.processBatch(batchDeals)
-        for (const deal of batchDeals) {
-          if (deal.appId !== null) pending.delete(deal.appId)
+      dealsBatchSize,
+      async (batchDeals, requestedAppIds) => {
+        priceChangedCount += await this.processBatch(batchDeals)
+        // Remove TODO o lote pedido da lista de pendentes, não só quem teve preço na resposta — um
+        // AppID que a GG.deals não rastreia (resposta vazia, mas bem-sucedida) precisa contar como
+        // processado também, senão fica preso pra sempre e trava o ciclo pros outros candidatos.
+        for (const appId of requestedAppIds) {
+          pending.delete(appId)
         }
-        this.cacheRepository.setPendingDealsAppIds([...pending])
+        this.cacheRepository.setPendingDealsAppIds([...pending, ...deferredByLimit])
       }
     )
 
@@ -92,17 +123,23 @@ export class FetchOwnableDeals {
       )
     }
 
+    // Logado só agora, depois de processar todos os lotes — assim esse resumo fica com o timestamp
+    // mais recente do ciclo e aparece no topo do grupo no Histórico (mais novo primeiro), com os
+    // "Nova oferta"/"Preço atualizado" individuais logo abaixo como detalhe.
     const finalDeals = this.cacheRepository.getDeals()
-    this.sessionLogRepository.log('success', `Concluído: ${finalDeals.length} oferta(s) atualizada(s).`)
+    const summary = `Busca de ofertas concluída: ${finalDeals.length} oferta(s) em cache, ${priceChangedCount} preço(s) mudaram nesse ciclo.`
+    this.sessionLogRepository.log('success', summary)
+    this.historyRepository.addEvent('offers_sync', summary)
     return finalDeals
   }
 
   /** Salva preço/histórico/metadata de um lote assim que ele chega, e mescla no cache sem apagar o resto. */
-  private async processBatch(batchDeals: GameDeal[]): Promise<void> {
+  private async processBatch(batchDeals: GameDeal[]): Promise<number> {
     const previousDeals = this.cacheRepository.getDeals()
-    const previousAppIds = new Set(
-      previousDeals.filter((deal) => deal.appId !== null).map((deal) => deal.appId)
+    const previousByAppId = new Map(
+      previousDeals.filter((deal) => deal.appId !== null).map((deal) => [deal.appId, deal])
     )
+    const previousAppIds = new Set(previousByAppId.keys())
     const withFirstSeen = preserveFirstSeenAt(batchDeals, previousDeals)
 
     for (const deal of withFirstSeen) {
@@ -115,6 +152,8 @@ export class FetchOwnableDeals {
       )
     }
 
+    const priceChangedCount = this.logPriceChanges(withFirstSeen, previousByAppId)
+
     const enriched = await this.enrichWithMetadata(withFirstSeen, previousAppIds)
 
     const dealsByAppId = new Map(
@@ -124,6 +163,43 @@ export class FetchOwnableDeals {
       if (deal.appId !== null) dealsByAppId.set(deal.appId, deal)
     }
     this.cacheRepository.setDeals([...dealsByAppId.values()])
+    return priceChangedCount
+  }
+
+  /**
+   * Loga jogo a jogo quem teve o preço (loja ou keyshop) realmente alterado neste ciclo — sem isso, uma
+   * atualização de preço em oferta já conhecida passava batido no log, só contando pro total final.
+   * Oferta genuinamente nova (sem entrada anterior) não entra aqui: ela já ganha seu próprio log em
+   * `enrichWithMetadata`.
+   */
+  private logPriceChanges(deals: GameDeal[], previousByAppId: Map<number | null, GameDeal>): number {
+    let changedCount = 0
+
+    for (const deal of deals) {
+      if (deal.appId === null) continue
+      const previous = previousByAppId.get(deal.appId)
+      if (!previous) continue
+
+      const parts: string[] = []
+      if (previous.currentRetailPrice !== deal.currentRetailPrice) {
+        parts.push(
+          `loja ${formatDealPrice(deal, previous.currentRetailPrice)} → ${formatDealPrice(deal, deal.currentRetailPrice)}`
+        )
+      }
+      if (previous.currentKeyshopPrice !== deal.currentKeyshopPrice) {
+        parts.push(
+          `keyshop ${formatDealPrice(deal, previous.currentKeyshopPrice)} → ${formatDealPrice(deal, deal.currentKeyshopPrice)}`
+        )
+      }
+      if (parts.length === 0) continue
+
+      changedCount += 1
+      const message = `Preço atualizado pra "${deal.title}": ${parts.join(', ')}.`
+      this.sessionLogRepository.log('info', message)
+      this.historyRepository.addEvent('offers_sync', message, deal.appId)
+    }
+
+    return changedCount
   }
 
   /**
@@ -145,6 +221,9 @@ export class FetchOwnableDeals {
       }
 
       const isNewDeal = !previousAppIds.has(deal.appId)
+      if (isNewDeal) {
+        this.historyRepository.addEvent('offers_sync', `Nova oferta: "${deal.title}".`, deal.appId)
+      }
       const cached = this.cacheRepository.getMetadata(deal.appId)
       const needsFetch = isNewDeal && isMetadataIncomplete(cached)
       if (needsFetch) {

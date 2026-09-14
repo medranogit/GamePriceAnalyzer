@@ -1,5 +1,6 @@
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync'
 import { isMetadataIncomplete } from '../isMetadataIncomplete'
@@ -37,7 +38,8 @@ export class ResolveMissingMetadata {
   constructor(
     private readonly cacheRepository: AppCacheRepository,
     private readonly metadataRepository: GameMetadataRepository,
-    private readonly sessionLogRepository: SessionLogRepository
+    private readonly sessionLogRepository: SessionLogRepository,
+    private readonly historyRepository: HistoryRepository
   ) {}
 
   execute(scope: ResolveMissingMetadataScope = 'all'): Promise<ResolveMissingMetadataResult> {
@@ -93,10 +95,9 @@ export class ResolveMissingMetadata {
         this.cacheRepository.setMetadata(metadata)
         resolved += 1
         synced += syncCachedDealsForAppId(this.cacheRepository, item.appId, metadata)
-        this.sessionLogRepository.log(
-          'success',
-          `Metadata resolvida pra "${item.title}": ${describeMetadata(metadata)}.`
-        )
+        const message = `Metadata resolvida pra "${item.title}": ${describeMetadata(metadata)}.`
+        this.sessionLogRepository.log('success', message)
+        this.historyRepository.addEvent('metadata_backfill', message, item.appId)
       } else {
         failed += 1
         this.sessionLogRepository.log('warn', `Não consegui metadata da Steam pra "${item.title}".`)
@@ -111,14 +112,14 @@ export class ResolveMissingMetadata {
     if (this.cancelled) {
       this.sessionLogRepository.log(
         'warn',
-        `Resolução de metadata cancelada: ${processed}/${missing.length} jogo(s) processado(s) (${resolved} resolvido(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
+        `Backfill de metadata (${scopeLabel}) cancelado: ${processed}/${missing.length} jogo(s) processado(s) (${resolved} resolvido(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
       )
       return { resolved, failed, synced }
     }
 
     this.sessionLogRepository.log(
       'success',
-      `Metadata resolvida: ${resolved}/${missing.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
+      `Backfill de metadata (${scopeLabel}) concluído: ${resolved}/${missing.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s) com a metadata.`
     )
     return { resolved, failed, synced }
   }

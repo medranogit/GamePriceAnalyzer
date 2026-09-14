@@ -67,7 +67,7 @@ function makeStatefulNotifiedDealsRepository(): NotifiedDealsRepository {
 }
 
 function makeHistoryRepository(): HistoryRepository {
-  return { getEvents: () => [], addEvent: vi.fn() }
+  return { getEvents: () => [], addEvent: vi.fn(), removeEvents: vi.fn() }
 }
 
 function makeSettingsRepository(
@@ -122,7 +122,12 @@ describe('CheckDealAlerts', () => {
 
     expect(notificationService.notifyDeal).toHaveBeenCalledTimes(3)
     expect(notificationService.notifyDealsBatch).not.toHaveBeenCalled()
-    expect(historyRepository.addEvent).toHaveBeenCalledTimes(3)
+    // 3 eventos por-oferta + 1 resumo do ciclo, gravado por último pra aparecer no topo do grupo.
+    expect(historyRepository.addEvent).toHaveBeenCalledTimes(4)
+    expect(historyRepository.addEvent).toHaveBeenCalledWith(
+      'offers_sync',
+      expect.stringContaining('3 notificação(ões) disparada(s)')
+    )
     expect(result).toHaveLength(3)
   })
 

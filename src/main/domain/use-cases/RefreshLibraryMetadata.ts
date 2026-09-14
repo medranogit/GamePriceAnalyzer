@@ -1,5 +1,6 @@
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync'
 import { describeMetadata } from '../describeMetadata'
@@ -30,7 +31,8 @@ export class RefreshLibraryMetadata {
   constructor(
     private readonly cacheRepository: AppCacheRepository,
     private readonly metadataRepository: GameMetadataRepository,
-    private readonly sessionLogRepository: SessionLogRepository
+    private readonly sessionLogRepository: SessionLogRepository,
+    private readonly historyRepository: HistoryRepository
   ) {}
 
   execute(scope: RefreshMetadataScope = 'library'): Promise<RefreshLibraryMetadataResult> {
@@ -94,10 +96,9 @@ export class RefreshLibraryMetadata {
         this.cacheRepository.setMetadata(metadata)
         refreshed += 1
         synced += syncCachedDealsForAppId(this.cacheRepository, appId, metadata, true)
-        this.sessionLogRepository.log(
-          'success',
-          `Metadata sobrescrita pra "${title}": ${describeMetadata(metadata)}.`
-        )
+        const message = `Metadata sobrescrita pra "${title}": ${describeMetadata(metadata)}.`
+        this.sessionLogRepository.log('success', message)
+        this.historyRepository.addEvent('metadata_refresh', message, appId)
       } else {
         failed += 1
         this.sessionLogRepository.log('warn', `Não consegui reconferir metadata da Steam pra "${title}".`)
@@ -111,14 +112,14 @@ export class RefreshLibraryMetadata {
     if (this.cancelled) {
       this.sessionLogRepository.log(
         'warn',
-        `Reconferência de metadata cancelada: ${processed}/${toProcess.length} jogo(s) processado(s) (${refreshed} atualizado(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
+        `Reconferência de metadata (${scopeLabel}) cancelada: ${processed}/${toProcess.length} jogo(s) processado(s) (${refreshed} atualizado(s), ${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
       )
       return { refreshed, failed, synced }
     }
 
     this.sessionLogRepository.log(
       'success',
-      `Reconferência de metadata concluída: ${refreshed}/${toProcess.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
+      `Reconferência de metadata (${scopeLabel}) concluída: ${refreshed}/${toProcess.length} jogo(s) (${failed} falha(s)). ${synced} oferta(s) em cache sincronizada(s).`
     )
     return { refreshed, failed, synced }
   }

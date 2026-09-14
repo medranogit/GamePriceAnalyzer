@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_SETTINGS } from '@shared/types'
 import type { GameDeal, GameMetadata, OwnedGame, WishlistItem } from '@shared/types'
 import type { DealsRepository } from '../repositories/DealsRepository'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
+import type { SettingsRepository } from '../repositories/SettingsRepository'
 import { FetchOwnableDeals } from './FetchOwnableDeals'
 
 function makeSessionLogRepository(): SessionLogRepository {
@@ -13,6 +16,19 @@ function makeSessionLogRepository(): SessionLogRepository {
     listSessions: () => [],
     getEntries: () => [],
     deleteSession: vi.fn()
+  }
+}
+
+function makeHistoryRepository(): HistoryRepository {
+  return { getEvents: () => [], addEvent: vi.fn(), removeEvents: vi.fn() }
+}
+
+function makeSettingsRepository(
+  maxDealsPerCycle = DEFAULT_SETTINGS.polling.maxDealsPerCycle
+): SettingsRepository {
+  return {
+    get: () => ({ ...DEFAULT_SETTINGS, polling: { ...DEFAULT_SETTINGS.polling, maxDealsPerCycle } }),
+    update: vi.fn()
   }
 }
 
@@ -65,11 +81,17 @@ function makeDeal(appId: number, overrides: Partial<GameDeal> = {}): GameDeal {
 function makeFetchDealsBySteamAppIds(
   buildDeals: (appIds: number[]) => GameDeal[]
 ): DealsRepository['fetchDealsBySteamAppIds'] {
-  return vi.fn(async (appIds: number[], onBatch?: (deals: GameDeal[]) => Promise<void> | void) => {
-    const deals = buildDeals(appIds)
-    await onBatch?.(deals)
-    return { deals, processedAppIdCount: appIds.length }
-  })
+  return vi.fn(
+    async (
+      appIds: number[],
+      _batchSize: number,
+      onBatch?: (deals: GameDeal[], requestedAppIds: number[]) => Promise<void> | void
+    ) => {
+      const deals = buildDeals(appIds)
+      await onBatch?.(deals, appIds)
+      return { deals, processedAppIdCount: appIds.length }
+    }
+  )
 }
 
 function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCacheRepository {
@@ -112,7 +134,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata: vi.fn() },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     const result = await useCase.execute()
@@ -134,12 +158,14 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata: vi.fn(async () => null) },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
 
-    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2], expect.any(Function))
+    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2], expect.any(Number), expect.any(Function))
   })
 
   it('registra observação de preço e enriquece com metadata para cada oferta', async () => {
@@ -165,12 +191,15 @@ describe('FetchOwnableDeals', () => {
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
     ])
     const cacheRepository = makeCacheRepository({ getWishlist: () => [makeWishlistItem(2)] })
+    const historyRepository = makeHistoryRepository()
     const useCase = new FetchOwnableDeals(
       { fetchDealsBySteamAppIds },
       { fetchMetadata: vi.fn(async () => metadata) },
       { getRecord: vi.fn(), recordObservation },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      historyRepository,
+      makeSettingsRepository()
     )
 
     const result = await useCase.execute()
@@ -181,6 +210,9 @@ describe('FetchOwnableDeals', () => {
     expect(result[0].steamPrice).toBe(99.9)
     expect(result[0].steamDiscountPercent).toBe(40)
     expect(cacheRepository.getDeals()).toEqual(result)
+    // Evento por-jogo (oferta genuinamente nova) — usado pela tela de Histórico pra listar
+    // individualmente quem entrou em Ofertas, não só o total agregado do ciclo.
+    expect(historyRepository.addEvent).toHaveBeenCalledWith('offers_sync', 'Nova oferta: "Game 2".', 2)
   })
 
   it('busca metadata pra cada AppID novo sem cache, sem se preocupar com o ritmo (isso é responsabilidade do GameMetadataRepository injetado)', async () => {
@@ -194,7 +226,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
@@ -233,7 +267,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
@@ -271,7 +307,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
@@ -308,7 +346,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
@@ -330,7 +370,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()
@@ -353,15 +395,122 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata: vi.fn(async () => null) },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     const result = await useCase.execute()
 
-    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2, 3], expect.any(Function))
+    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2, 3], expect.any(Number), expect.any(Function))
     // o appId 1 (já buscado antes da interrupção) continua no resultado final, sem ser buscado de novo
     expect(result.find((deal) => deal.appId === 1)?.currentRetailPrice).toBe(10)
     expect(result).toHaveLength(3)
+  })
+
+  it('loga o preço antigo e o novo quando uma oferta já conhecida muda de preço', async () => {
+    const sessionLogRepository = makeSessionLogRepository()
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [
+      makeDeal(2, { currentRetailPrice: 40, currentKeyshopPrice: 35 })
+    ])
+    const cacheRepository = makeCacheRepository({ getWishlist: () => [makeWishlistItem(2)] })
+    cacheRepository.setDeals([makeDeal(2, { currentRetailPrice: 50, currentKeyshopPrice: 35 })])
+    const historyRepository = makeHistoryRepository()
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      sessionLogRepository,
+      historyRepository,
+      makeSettingsRepository()
+    )
+
+    await useCase.execute()
+
+    expect(sessionLogRepository.log).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining('loja BRL 50.00 → BRL 40.00')
+    )
+    expect(historyRepository.addEvent).toHaveBeenCalledWith(
+      'offers_sync',
+      expect.stringContaining('loja BRL 50.00 → BRL 40.00'),
+      2
+    )
+  })
+
+  it('não loga preço quando a oferta já conhecida não mudou de valor', async () => {
+    const sessionLogRepository = makeSessionLogRepository()
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [
+      makeDeal(2, { currentRetailPrice: 50, currentKeyshopPrice: 35 })
+    ])
+    const cacheRepository = makeCacheRepository({ getWishlist: () => [makeWishlistItem(2)] })
+    cacheRepository.setDeals([makeDeal(2, { currentRetailPrice: 50, currentKeyshopPrice: 35 })])
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      sessionLogRepository,
+      makeHistoryRepository(),
+      makeSettingsRepository()
+    )
+
+    await useCase.execute()
+
+    expect(sessionLogRepository.log).not.toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining('Preço atualizado')
+    )
+  })
+
+  it('não fica preso pra sempre em AppIDs que a GG.deals não retorna dado nenhum (regressão real)', async () => {
+    // Bug real observado em produção: AppIDs sem dado na resposta do GG.deals nunca saíam de
+    // `pendingDealsAppIds` (só quem tinha deal na resposta era removido de lá), travando o ciclo
+    // pra sempre nesses AppIDs mortos e nunca mais voltando a consultar o resto da wishlist.
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [])
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2), makeWishlistItem(3), makeWishlistItem(4)]
+    })
+    // usa o setter de verdade (não um override fixo) pra getPendingDealsAppIds() continuar refletindo
+    // as chamadas de setPendingDealsAppIds feitas durante o execute(), como no cache real.
+    cacheRepository.setPendingDealsAppIds([2, 3])
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
+    )
+
+    await useCase.execute()
+
+    expect(cacheRepository.getPendingDealsAppIds()).toEqual([])
+  })
+
+  it('respeita o limite configurado de AppIDs por ciclo, deixando o resto pendente pra próxima busca', async () => {
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds((appIds) =>
+      appIds.map((appId) => makeDeal(appId))
+    )
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1), makeWishlistItem(2), makeWishlistItem(3)]
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository(2)
+    )
+
+    await useCase.execute()
+
+    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([1, 2], expect.any(Number), expect.any(Function))
+    expect(cacheRepository.getPendingDealsAppIds()).toEqual([3])
   })
 
   it('marca todos como pendentes no início de um ciclo novo, e zera ao concluir', async () => {
@@ -376,7 +525,9 @@ describe('FetchOwnableDeals', () => {
       { fetchMetadata: vi.fn(async () => null) },
       { getRecord: vi.fn(), recordObservation: vi.fn() },
       cacheRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
     )
 
     await useCase.execute()

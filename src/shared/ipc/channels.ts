@@ -7,6 +7,7 @@ export const IPC_CHANNELS = {
   wishlistRemove: 'wishlist:remove',
   wishlistSyncFromSteam: 'wishlist:syncFromSteam',
   historyGetEvents: 'history:getEvents',
+  historyRemoveEvents: 'history:removeEvents',
   sessionLogGetSessions: 'sessionLog:getSessions',
   sessionLogGetEntries: 'sessionLog:getEntries',
   sessionLogDeleteSession: 'sessionLog:deleteSession',

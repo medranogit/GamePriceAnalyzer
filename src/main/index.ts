@@ -200,17 +200,21 @@ async function bootstrap(): Promise<void> {
     metadataRepository,
     priceHistoryRepository,
     cacheRepository,
-    sessionLogRepository
+    sessionLogRepository,
+    historyRepository,
+    settingsRepository
   )
   const resolveMissingMetadata = new ResolveMissingMetadata(
     cacheRepository,
     metadataRepository,
-    sessionLogRepository
+    sessionLogRepository,
+    historyRepository
   )
   const refreshLibraryMetadata = new RefreshLibraryMetadata(
     cacheRepository,
     metadataRepository,
-    sessionLogRepository
+    sessionLogRepository,
+    historyRepository
   )
   const fetchSingleGameMetadata = new FetchSingleGameMetadata(
     cacheRepository,

@@ -1,5 +1,13 @@
 {
   "permissions": {
-    "allow": ["Bash(npx eslint *)", "Bash(npx prettier *)", "Bash(echo \"LINT EXIT:$?\")"]
+    "allow": [
+      "Bash(npx eslint *)",
+      "Bash(npx prettier *)",
+      "Bash(echo \"LINT EXIT:$?\")",
+      "WebFetch(domain:steamapi.xpaw.me)",
+      "Read(//c/Users/vinim/AppData/Roaming/hubgame-center/**)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"console.log\\(require\\('fs'\\).readFileSync\\('C:/Users/vinim/AppData/Roaming/hubgame-center/deals-fetch-progress.json', 'utf-8'\\)\\)\")"
+    ]
   }
 }

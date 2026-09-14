@@ -17,14 +17,21 @@ export class JsonHistoryRepository implements HistoryRepository {
     return this.store.read().events
   }
 
-  addEvent(type: HistoryEventType, message: string): void {
+  addEvent(type: HistoryEventType, message: string, appId?: number | null): void {
     const event: HistoryEvent = {
       id: randomUUID(),
       type,
       message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      appId
     }
     const current = this.store.read().events
     this.store.write({ events: [event, ...current].slice(0, MAX_EVENTS) })
+  }
+
+  removeEvents(ids: string[]): void {
+    const idSet = new Set(ids)
+    const current = this.store.read().events
+    this.store.write({ events: current.filter((event) => !idSet.has(event.id)) })
   }
 }

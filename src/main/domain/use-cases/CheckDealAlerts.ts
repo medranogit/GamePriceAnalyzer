@@ -91,10 +91,12 @@ export class CheckDealAlerts {
         )
       }
 
-      this.sessionLogRepository.log(
-        'success',
-        `Busca de ofertas concluída: ${deals.length} jogo(s) analisado(s), ${toNotify.length} notificação(ões) disparada(s).`
-      )
+      // Logado só agora, depois do loop de notificação — assim esse resumo fica com o timestamp mais
+      // recente do ciclo e aparece no topo do grupo no Histórico (mais novo primeiro), com as "Oferta
+      // notificada: X" individuais logo abaixo como detalhe.
+      const summary = `Busca de ofertas concluída: ${deals.length} jogo(s) analisado(s), ${toNotify.length} notificação(ões) disparada(s).`
+      this.historyRepository.addEvent('offers_sync', summary)
+      this.sessionLogRepository.log('success', summary)
       return toNotify.map((item) => item.deal)
     } catch (error) {
       this.sessionLogRepository.log(

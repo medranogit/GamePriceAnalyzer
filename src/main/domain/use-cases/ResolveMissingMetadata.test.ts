@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GameDeal, GameMetadata, OwnedGame, WishlistItem } from '@shared/types'
 import type { AppCacheRepository } from '../repositories/AppCacheRepository'
 import type { GameMetadataRepository } from '../repositories/GameMetadataRepository'
+import type { HistoryRepository } from '../repositories/HistoryRepository'
 import type { SessionLogRepository } from '../repositories/SessionLogRepository'
 import { ResolveMissingMetadata } from './ResolveMissingMetadata'
 
@@ -14,6 +15,10 @@ function makeSessionLogRepository(): SessionLogRepository {
     getEntries: () => [],
     deleteSession: vi.fn()
   }
+}
+
+function makeHistoryRepository(): HistoryRepository {
+  return { getEvents: () => [], addEvent: vi.fn(), removeEvents: vi.fn() }
 }
 
 function makeWishlistItem(appId: number): WishlistItem {
@@ -118,10 +123,12 @@ describe('ResolveMissingMetadata', () => {
     })
     const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
     const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const historyRepository = makeHistoryRepository()
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      historyRepository
     )
 
     const resultPromise = useCase.execute()
@@ -132,6 +139,13 @@ describe('ResolveMissingMetadata', () => {
     expect(fetchMetadata).toHaveBeenCalledWith(2)
     expect(cacheRepository.setMetadata).toHaveBeenCalledWith(makeMetadata(2))
     expect(result).toEqual({ resolved: 1, failed: 0, synced: 0 })
+    // Evento por-jogo com appId — a tela de Histórico usa isso pra saber em qual aba (Biblioteca/
+    // Wishlist/Ofertas) mostrar, checando onde esse appId está cacheado agora.
+    expect(historyRepository.addEvent).toHaveBeenCalledWith(
+      'metadata_backfill',
+      expect.stringContaining('Metadata resolvida'),
+      2
+    )
   })
 
   it('também busca metadata de jogos possuídos (biblioteca), não só da wishlist, sem duplicar quem está nas duas listas', async () => {
@@ -146,7 +160,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -170,7 +185,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute('library')
@@ -197,7 +213,8 @@ describe('ResolveMissingMetadata', () => {
       const useCase = new ResolveMissingMetadata(
         cacheRepository,
         metadataRepository,
-        makeSessionLogRepository()
+        makeSessionLogRepository(),
+        makeHistoryRepository()
       )
 
       const resultPromise = useCase.execute()
@@ -222,7 +239,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -246,7 +264,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -274,7 +293,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -309,7 +329,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const resultPromise = useCase.execute()
@@ -332,7 +353,12 @@ describe('ResolveMissingMetadata', () => {
       return makeMetadata(appId)
     })
     const metadataRepository: GameMetadataRepository = { fetchMetadata }
-    useCase = new ResolveMissingMetadata(cacheRepository, metadataRepository, makeSessionLogRepository())
+    useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository()
+    )
 
     const resultPromise = useCase.execute()
     await vi.runAllTimersAsync()
@@ -353,7 +379,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     expect(useCase.isResolving()).toBe(false)
@@ -377,7 +404,8 @@ describe('ResolveMissingMetadata', () => {
     const useCase = new ResolveMissingMetadata(
       cacheRepository,
       metadataRepository,
-      makeSessionLogRepository()
+      makeSessionLogRepository(),
+      makeHistoryRepository()
     )
 
     const first = useCase.execute()

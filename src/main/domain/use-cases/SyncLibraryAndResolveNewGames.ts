@@ -30,11 +30,13 @@ export class SyncLibraryAndResolveNewGames {
       this.cacheRepository.setOwnedGames(games)
 
       const newGames = games.filter((game) => !previousAppIds.has(game.appId))
-      const message = `Biblioteca Steam sincronizada: ${games.length} jogos (${newGames.length} novo(s)).`
-      this.historyRepository.addEvent('library_sync', message)
-      this.sessionLogRepository.log('success', message)
+      const { removedFromWishlist, removedFromDeals } =
+        newGames.length > 0
+          ? this.removeFromWishlistAndDeals(newGames)
+          : { removedFromWishlist: 0, removedFromDeals: 0 }
 
       for (const game of newGames) {
+        this.historyRepository.addEvent('library_sync', `Novo na biblioteca: "${game.name}".`, game.appId)
         this.sessionLogRepository.log(
           'info',
           `Jogo novo na biblioteca — buscando metadata pra "${game.name}"...`
@@ -52,6 +54,17 @@ export class SyncLibraryAndResolveNewGames {
         }
       }
 
+      // Logado só agora, depois de processar cada jogo novo — assim esse resumo fica com o timestamp
+      // mais recente do ciclo e aparece no topo do grupo no Histórico (mais novo primeiro), com os
+      // eventos individuais de cada jogo logo abaixo como detalhe.
+      const removalSuffix =
+        removedFromWishlist > 0 || removedFromDeals > 0
+          ? ` Removido da wishlist (${removedFromWishlist}) e das ofertas (${removedFromDeals}) por já ser possuído.`
+          : ''
+      const message = `Biblioteca Steam sincronizada: ${games.length} jogos (${newGames.length} novo(s)).${removalSuffix}`
+      this.historyRepository.addEvent('library_sync', message)
+      this.sessionLogRepository.log('success', message)
+
       return games
     } catch (error) {
       this.sessionLogRepository.log(
@@ -59,6 +72,35 @@ export class SyncLibraryAndResolveNewGames {
         `Falha ao sincronizar biblioteca: ${error instanceof Error ? error.message : String(error)}`
       )
       throw error
+    }
+  }
+
+  /**
+   * Um jogo recém-detectado como possuído já saiu da wishlist da Steam (ela remove sozinha ao comprar) —
+   * poda direto daqui em vez de esperar o próximo ciclo da sync da wishlist ou de Ofertas perceberem
+   * sozinhos, o que evitava o jogo continuar aparecendo em uma das duas telas por até um ciclo inteiro.
+   */
+  private removeFromWishlistAndDeals(newGames: OwnedGame[]): {
+    removedFromWishlist: number
+    removedFromDeals: number
+  } {
+    const newAppIds = new Set(newGames.map((game) => game.appId))
+
+    const wishlist = this.cacheRepository.getWishlist()
+    const prunedWishlist = wishlist.filter((item) => !newAppIds.has(item.appId))
+    if (prunedWishlist.length !== wishlist.length) {
+      this.cacheRepository.setWishlist(prunedWishlist)
+    }
+
+    const deals = this.cacheRepository.getDeals()
+    const prunedDeals = deals.filter((deal) => deal.appId === null || !newAppIds.has(deal.appId))
+    if (prunedDeals.length !== deals.length) {
+      this.cacheRepository.setDeals(prunedDeals)
+    }
+
+    return {
+      removedFromWishlist: wishlist.length - prunedWishlist.length,
+      removedFromDeals: deals.length - prunedDeals.length
     }
   }
 }

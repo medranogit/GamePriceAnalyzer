@@ -52,9 +52,12 @@ export class SyncSteamWishlist {
           newlyResolvedCount += 1
         }
 
+        const title = metadata?.title ?? `AppID ${entry.appId}`
+        this.historyRepository.addEvent('wishlist_import', `Novo na wishlist: "${title}".`, entry.appId)
+
         nextWishlist.push({
           appId: entry.appId,
-          title: metadata?.title ?? `AppID ${entry.appId}`,
+          title,
           storeUrl: `https://store.steampowered.com/app/${entry.appId}/`,
           addedDate: entry.addedAt,
           releaseDate: '',
@@ -66,6 +69,9 @@ export class SyncSteamWishlist {
       }
 
       this.cacheRepository.setWishlist(nextWishlist)
+      // Logado só agora, depois do loop — assim esse resumo fica com o timestamp mais recente do ciclo
+      // e aparece no topo do grupo no Histórico (mais novo primeiro), com os "Novo na wishlist: X"
+      // individuais logo abaixo como detalhe.
       const message = `Wishlist sincronizada com a Steam: ${nextWishlist.length} jogos (${newlyResolvedCount} novos).`
       this.historyRepository.addEvent('wishlist_import', message)
       this.sessionLogRepository.log('success', message)
