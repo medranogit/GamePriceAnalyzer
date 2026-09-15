@@ -29,6 +29,9 @@ function makeMetadata(overrides: Partial<GameMetadata> = {}): GameMetadata {
         thumbnailUrl: 'https://steamstatic.example.com/thumb.jpg'
       }
     ],
+    dlcAppIds: [],
+    isDlc: false,
+    parentAppId: null,
     ...overrides
   }
 }

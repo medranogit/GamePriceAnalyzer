@@ -168,6 +168,51 @@ describe('FetchOwnableDeals', () => {
     expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([2], expect.any(Number), expect.any(Function))
   })
 
+  it('inclui como candidato a DLC de um jogo já possuído na Biblioteca, mesmo sem estar na wishlist', async () => {
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds((appIds) =>
+      appIds.map((appId) => makeDeal(appId))
+    )
+    const ownedGameMetadata: GameMetadata = {
+      appId: 1,
+      title: 'Jogo base',
+      genres: [],
+      headerImageUrl: null,
+      steamPrice: null,
+      steamDiscountPercent: null,
+      steamFullPrice: null,
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: [],
+      trailers: [],
+      dlcAppIds: [100, 200],
+      isDlc: false,
+      parentAppId: null
+    }
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [],
+      getOwnedGames: () => [makeOwnedGame(1), makeOwnedGame(200)],
+      getAllMetadata: () => [ownedGameMetadata]
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
+    )
+
+    await useCase.execute()
+
+    // DLC 100 (não possuída) entra; DLC 200 é descartada por já estar possuída (Set de owned games).
+    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([100], expect.any(Number), expect.any(Function))
+  })
+
   it('registra observação de preço e enriquece com metadata para cada oferta', async () => {
     const recordObservation = vi.fn()
     const metadata: GameMetadata = {
@@ -185,7 +230,10 @@ describe('FetchOwnableDeals', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailers: []
+      trailers: [],
+      dlcAppIds: [],
+      isDlc: false,
+      parentAppId: null
     }
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [
       makeDeal(2, { currentRetailPrice: 60, currentKeyshopPrice: 55 })
@@ -254,7 +302,10 @@ describe('FetchOwnableDeals', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailers: []
+      trailers: [],
+      dlcAppIds: [],
+      isDlc: false,
+      parentAppId: null
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])
@@ -333,7 +384,10 @@ describe('FetchOwnableDeals', () => {
       metacriticScore: null,
       recommendationsTotal: null,
       screenshots: [],
-      trailers: []
+      trailers: [],
+      dlcAppIds: [],
+      isDlc: false,
+      parentAppId: null
     }
     const fetchMetadata = vi.fn(async () => null)
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])

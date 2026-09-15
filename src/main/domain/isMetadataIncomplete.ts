@@ -15,7 +15,10 @@ const METADATA_FIELDS: Array<keyof GameMetadata> = [
   'metacriticScore',
   'recommendationsTotal',
   'screenshots',
-  'trailers'
+  'trailers',
+  'dlcAppIds',
+  'isDlc',
+  'parentAppId'
 ]
 
 /**

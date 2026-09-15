@@ -14,11 +14,16 @@ sem notificar de jogos que você já possui na Steam.
   já registrado.
 - **Notificações em background** (nativa do Windows + in-app) quando uma oferta atinge o desconto mínimo
   configurado, ou quando o preço atual iguala/supera o menor preço histórico do GG.deals.
-- **Dashboard de ofertas** com filtro por desconto mínimo, faixa de preço, gênero, keyshops e busca por
-  nome.
-- **Página de wishlist** com atualização de preço sob demanda e histórico do menor preço já visto pelo
-  próprio programa.
-- **Histórico de eventos** (sincronizações, ofertas encontradas, etc.).
+- **Dashboard de ofertas** com filtro por desconto mínimo, faixa de preço, gênero, keyshops, busca por
+  nome e um filtro/categorização **"Hot Deals"** (mesmo critério configurado pra notificação).
+- **Página de wishlist** como lista simples (sincronizar/filtrar/remover) — preço e detalhe de oferta
+  ficam só no Dashboard, pra não duplicar informação.
+- **Fila de Chamadas**: tela dedicada com os 4 timers automáticos (Ofertas, Wishlist, Biblioteca,
+  Backfill de metadata), configuráveis ali mesmo (intervalo, jogos por ciclo e lotes por chamada no
+  caso de Ofertas), um indicador de cota usada do GG.deals, as filas ao vivo de chamada (GG.deals e
+  Steam) e um log detalhado jogo a jogo do que cada timer resolveu.
+- **Histórico de eventos**, organizado em 3 abas (Minha Biblioteca / Ofertas / Wishlist) — cada jogo
+  aparece na aba de onde ele está _agora_, não de onde o evento aconteceu.
 - Roda minimizado na bandeja do sistema, com opção de iniciar junto com o Windows.
 
 Quer entender o passo a passo de cada fluxo (sincronização, busca de ofertas, regra de desconto,

@@ -1,4 +1,4 @@
-import type { GameDeal } from '@shared/types'
+import type { GameDeal, GGDealsQuotaStatus } from '@shared/types'
 import { logger } from '../logging/logger'
 import { fetchWithRetry } from '../http/fetchWithRetry'
 import type { SessionLogRepository } from '../../domain/repositories/SessionLogRepository'
@@ -7,6 +7,8 @@ import type { QueueActivityTracker } from '../../domain/QueueActivityTracker'
 const BASE_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/'
 /** Limite real da API do GG.deals por chamada HTTP — não é configurável, é um teto de segurança. */
 const GG_DEALS_HARD_LIMIT = 100
+/** Cota real da conta, documentada pela GG.deals — usado só pra exibir "quanto já foi usado" na Fila de Chamadas. */
+const GG_DEALS_HOURLY_LIMIT = 1000
 /** Pausa entre lotes do mesmo ciclo — só entre um e outro, nunca depois do último. */
 const BATCH_DELAY_MS = 5_000
 
@@ -78,11 +80,24 @@ function readRemaining(res: Response): number | null {
  * decide priorizar o restante na próxima busca.
  */
 export class GGDealsApiClient {
+  private lastKnownRemaining: number | null = null
+  private lastCheckedAt: string | null = null
+
   constructor(
     private readonly apiKeyProvider: () => string | null,
     private readonly sessionLogRepository: SessionLogRepository,
     private readonly tracker?: QueueActivityTracker
   ) {}
+
+  /** Estimativa de "agora" pra exibição (ex: Fila de Chamadas) — baseada só no último header de
+   * rate limit que a própria API devolveu, não persiste entre reinícios do app. */
+  getQuotaStatus(): GGDealsQuotaStatus {
+    return {
+      remaining: this.lastKnownRemaining,
+      limit: GG_DEALS_HOURLY_LIMIT,
+      checkedAt: this.lastCheckedAt
+    }
+  }
 
   async getPricesBySteamAppIds(
     appIds: number[],
@@ -170,6 +185,10 @@ export class GGDealsApiClient {
 
     const res = await fetchWithRetry(url)
     const remaining = readRemaining(res)
+    if (remaining !== null) {
+      this.lastKnownRemaining = remaining
+      this.lastCheckedAt = new Date().toISOString()
+    }
 
     if (res.status === 429) {
       return { deals: [], remaining: 0, rateLimited: true }

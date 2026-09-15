@@ -18,6 +18,15 @@ export function useSteamMetadataQueue() {
   })
 }
 
+export function useGGDealsQuota() {
+  return useQuery({
+    queryKey: ['queues', 'gg-deals-quota'],
+    queryFn: () => window.api.queues.getGGDealsQuota(),
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true
+  })
+}
+
 export function useTimersStatus() {
   return useQuery({
     queryKey: ['timers'],

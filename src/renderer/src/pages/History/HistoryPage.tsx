@@ -67,6 +67,38 @@ function resolveTab(
   return null
 }
 
+/** Casa cada par "valor antigo → valor novo" de `logPriceChanges` (ex: "BRL 35.85 → BRL 30.68" ou "sem
+ * oferta → BRL 30.68") — usado só pra colorir preço antigo/novo na mensagem, sem mudar o texto salvo. */
+const PRICE_ARROW_REGEX = /(sem oferta|\S+ [\d.,]+) → (sem oferta|\S+ [\d.,]+)/g
+
+/** Mensagens de "Preço atualizado" ganham cor (vermelho no valor antigo, verde no novo) e trocam a
+ * vírgula entre loja/keyshop por " | " — pra ficar mais fácil de escanear visualmente. Mensagens sem
+ * esse padrão (a maioria) voltam inalteradas. */
+function renderMessage(message: string) {
+  const parts = message.split(PRICE_ARROW_REGEX)
+  if (parts.length === 1) return message
+
+  return parts.map((part, index) => {
+    const position = index % 3
+    if (position === 1) {
+      return (
+        <span key={index} style={{ color: '#ff4d4f' }}>
+          {part}
+        </span>
+      )
+    }
+    if (position === 2) {
+      return (
+        <span key={index}>
+          {' → '}
+          <span style={{ color: '#52c41a' }}>{part}</span>
+        </span>
+      )
+    }
+    return <span key={index}>{part.replace(/^, /, ' | ')}</span>
+  })
+}
+
 const columns = [
   {
     title: 'Tipo',
@@ -85,7 +117,8 @@ const columns = [
   {
     title: 'Mensagem',
     dataIndex: 'message',
-    key: 'message'
+    key: 'message',
+    render: renderMessage
   }
 ]
 

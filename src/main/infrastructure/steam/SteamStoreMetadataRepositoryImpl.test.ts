@@ -110,4 +110,42 @@ describe('SteamStoreMetadataRepositoryImpl', () => {
       { url: 'low2.mp4', thumbnailUrl: 'thumb2.jpg' }
     ])
   })
+
+  it('extrai a lista de AppIDs de DLC de um jogo base', async () => {
+    vi.mocked(fetchWithRetry).mockResolvedValueOnce(
+      makeResponse({
+        '1091500': { success: true, data: { name: 'Cyberpunk 2077', genres: [], dlc: [1424700, 2181640] } }
+      })
+    )
+    const repository = new SteamStoreMetadataRepositoryImpl()
+
+    const result = await repository.fetchMetadata(1091500)
+
+    expect(result?.dlcAppIds).toEqual([1424700, 2181640])
+    expect(result?.isDlc).toBe(false)
+    expect(result?.parentAppId).toBeNull()
+  })
+
+  it('identifica quando o próprio AppID buscado é uma DLC, e de qual jogo base', async () => {
+    vi.mocked(fetchWithRetry).mockResolvedValueOnce(
+      makeResponse({
+        '1424700': {
+          success: true,
+          data: {
+            name: 'Cyberpunk 2077: Phantom Liberty',
+            genres: [],
+            type: 'dlc',
+            fullgame: { appid: '1091500', name: 'Cyberpunk 2077' }
+          }
+        }
+      })
+    )
+    const repository = new SteamStoreMetadataRepositoryImpl()
+
+    const result = await repository.fetchMetadata(1424700)
+
+    expect(result?.isDlc).toBe(true)
+    expect(result?.parentAppId).toBe(1091500)
+    expect(result?.dlcAppIds).toEqual([])
+  })
 })

@@ -22,6 +22,9 @@ interface AppDetailsResponse {
       metacritic?: { score: number; url: string }
       recommendations?: { total: number }
       screenshots?: Array<{ id: number; path_thumbnail: string; path_full: string }>
+      type?: string
+      dlc?: number[]
+      fullgame?: { appid: string; name: string }
       movies?: Array<{
         id: number
         highlight: boolean
@@ -83,7 +86,10 @@ export class SteamStoreMetadataRepositoryImpl implements GameMetadataRepository 
         metacriticScore: entry.data.metacritic?.score ?? null,
         recommendationsTotal: entry.data.recommendations?.total ?? null,
         screenshots: entry.data.screenshots?.slice(0, 20).map((s) => s.path_full) ?? [],
-        trailers
+        trailers,
+        dlcAppIds: entry.data.dlc ?? [],
+        isDlc: entry.data.type === 'dlc',
+        parentAppId: entry.data.fullgame ? Number(entry.data.fullgame.appid) : null
       }
     } catch (error) {
       logger.warn(`Falha ao buscar metadata do appId ${appId}`, error)

@@ -29,4 +29,9 @@ export interface GameDeal {
    * (que não muda depois da primeira vez). Ausente em cache salvo antes desse campo existir. Usado pra
    * ordenar Ofertas com quem foi atualizado mais recentemente primeiro. */
   priceUpdatedAt?: string
+  /** true quando essa oferta é uma DLC (descoberta a partir de um jogo já possuído na Biblioteca), não
+   * um jogo da wishlist. Ausente em cache salvo antes desse campo existir. */
+  isDlc?: boolean
+  /** AppID do jogo base, só quando `isDlc` é true. */
+  parentAppId?: number | null
 }

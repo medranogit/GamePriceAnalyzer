@@ -19,6 +19,9 @@ function makeMetadata(appId: number, overrides: Partial<GameMetadata> = {}): Gam
     recommendationsTotal: 1000,
     screenshots: ['https://example.com/new-shot.jpg'],
     trailers: [{ url: 'https://example.com/new-trailer.mp4', thumbnailUrl: null }],
+    dlcAppIds: [],
+    isDlc: false,
+    parentAppId: null,
     ...overrides
   }
 }

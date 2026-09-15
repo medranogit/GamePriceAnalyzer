@@ -20,4 +20,10 @@ export interface GameMetadata {
   recommendationsTotal: number | null
   screenshots: string[]
   trailers: GameTrailer[]
+  /** AppIDs das DLCs deste jogo, segundo a própria Steam — vazio se não tiver nenhuma. */
+  dlcAppIds: number[]
+  /** true quando ESTE appId é, ele mesmo, uma DLC (não o jogo base). */
+  isDlc: boolean
+  /** AppID do jogo base, só quando `isDlc` é true. */
+  parentAppId: number | null
 }

@@ -125,6 +125,16 @@ export function FilterBar({
               onChange={(checked) => onChange({ onlyHistoricalLow: checked })}
             />
           </Space>
+
+          <Space direction="vertical" size={0} align="center">
+            <Text type="secondary">
+              Incluir DLCs{' '}
+              <Tooltip title="Mostra DLCs descobertas a partir de jogos que você já possui na Biblioteca, mesmo sem estarem na sua wishlist.">
+                <InfoCircleOutlined />
+              </Tooltip>
+            </Text>
+            <Switch checked={filters.includeDlc} onChange={(checked) => onChange({ includeDlc: checked })} />
+          </Space>
         </FiltersGroup>
       </TopRow>
     </Card>

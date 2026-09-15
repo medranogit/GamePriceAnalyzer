@@ -39,7 +39,7 @@ function makeOwnedGame(appId: number): OwnedGame {
   return { appId, name: `Game ${appId}`, playtimeForeverMinutes: 0 }
 }
 
-function makeMetadata(appId: number): GameMetadata {
+function makeMetadata(appId: number, overrides: Partial<GameMetadata> = {}): GameMetadata {
   return {
     appId,
     title: `Game ${appId}`,
@@ -55,7 +55,11 @@ function makeMetadata(appId: number): GameMetadata {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailers: []
+    trailers: [],
+    dlcAppIds: [],
+    isDlc: false,
+    parentAppId: null,
+    ...overrides
   }
 }
 
@@ -171,6 +175,30 @@ describe('ResolveMissingMetadata', () => {
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
     expect(fetchMetadata).toHaveBeenCalledWith(2)
     expect(fetchMetadata).toHaveBeenCalledWith(3)
+    expect(result.resolved).toBe(2)
+  })
+
+  it('também busca metadata das DLCs de um jogo possuído, mesmo sem estarem na wishlist', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getOwnedGames: () => [makeOwnedGame(1)],
+      getMetadata: (appId) => (appId === 1 ? makeMetadata(1, { dlcAppIds: [100, 200] }) : null)
+    })
+    const fetchMetadata = vi.fn(async (appId: number) => makeMetadata(appId))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository()
+    )
+
+    const resultPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
+    expect(fetchMetadata).toHaveBeenCalledWith(100)
+    expect(fetchMetadata).toHaveBeenCalledWith(200)
     expect(result.resolved).toBe(2)
   })
 
@@ -414,5 +442,66 @@ describe('ResolveMissingMetadata', () => {
     await Promise.all([first, second])
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
+  })
+
+  it('para de tentar automaticamente um AppID depois de 3 ciclos seguidos falhando (provável delistado)', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1)]
+    })
+    const fetchMetadata = vi.fn(async () => null)
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository()
+    )
+
+    for (let cycle = 0; cycle < 3; cycle++) {
+      const resultPromise = useCase.execute()
+      await vi.runAllTimersAsync()
+      await resultPromise
+    }
+
+    expect(fetchMetadata).toHaveBeenCalledTimes(3)
+
+    fetchMetadata.mockClear()
+    const fourthCyclePromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const fourthResult = await fourthCyclePromise
+
+    expect(fetchMetadata).not.toHaveBeenCalled()
+    expect(fourthResult).toEqual({ resolved: 0, failed: 0, synced: 0 })
+  })
+
+  it('reseta a contagem de falhas assim que um AppID resolve com sucesso', async () => {
+    vi.useFakeTimers()
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [makeWishlistItem(1)]
+    })
+    let shouldFail = true
+    const fetchMetadata = vi.fn(async (appId: number) => (shouldFail ? null : makeMetadata(appId)))
+    const metadataRepository: GameMetadataRepository = { fetchMetadata }
+    const useCase = new ResolveMissingMetadata(
+      cacheRepository,
+      metadataRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository()
+    )
+
+    // 2 falhas (abaixo do limite de 3) e depois sucesso.
+    for (let cycle = 0; cycle < 2; cycle++) {
+      const resultPromise = useCase.execute()
+      await vi.runAllTimersAsync()
+      await resultPromise
+    }
+    shouldFail = false
+    const successPromise = useCase.execute()
+    await vi.runAllTimersAsync()
+    const successResult = await successPromise
+
+    expect(successResult.resolved).toBe(1)
+    expect(cacheRepository.getMetadata(1)).toEqual(makeMetadata(1))
   })
 })

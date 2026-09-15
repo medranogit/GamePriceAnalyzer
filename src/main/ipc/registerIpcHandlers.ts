@@ -23,11 +23,14 @@ import type { RefreshLibraryMetadata } from '../domain/use-cases/RefreshLibraryM
 import type { FetchSingleGameMetadata } from '../domain/use-cases/FetchSingleGameMetadata'
 import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchievements'
 import type { QueueActivityTracker } from '../domain/QueueActivityTracker'
+import type { GGDealsApiClient } from '../infrastructure/ggdeals/GGDealsApiClient'
+import type { PriceHistoryRepository } from '../domain/repositories/PriceHistoryRepository'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
   cacheRepository: AppCacheRepository
   historyRepository: HistoryRepository
+  priceHistoryRepository: PriceHistoryRepository
   notificationService: NotificationService
   notifiedDealsRepository: NotifiedDealsRepository
   resolveMissingMetadata: ResolveMissingMetadata
@@ -38,6 +41,7 @@ interface Dependencies {
   metadataBackfillScheduler: LastRunScheduler
   ggDealsQueueTracker: QueueActivityTracker
   steamMetadataQueueTracker: QueueActivityTracker
+  ggDealsClient: GGDealsApiClient
   removeWishlistItem: RemoveWishlistItem
   scheduler: PollingScheduler
   secretsStore: SecretsStore
@@ -224,6 +228,12 @@ export function registerIpcHandlers(deps: Dependencies): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.queuesGetGGDeals, () => deps.ggDealsQueueTracker.getSnapshot())
+
+  ipcMain.handle(IPC_CHANNELS.queuesGetGGDealsQuota, () => deps.ggDealsClient.getQuotaStatus())
+
+  ipcMain.handle(IPC_CHANNELS.priceHistoryGetForAppId, (_event, appId: number) =>
+    deps.priceHistoryRepository.getRecord(appId)
+  )
 
   ipcMain.handle(IPC_CHANNELS.queuesGetSteamMetadata, () => deps.steamMetadataQueueTracker.getSnapshot())
 

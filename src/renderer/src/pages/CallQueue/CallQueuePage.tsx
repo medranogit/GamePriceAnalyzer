@@ -11,7 +11,12 @@ import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueueEntry, TimerStatus } from '@shared/types'
-import { useGGDealsQueue, useSteamMetadataQueue, useTimersStatus } from '@renderer/hooks/useQueues'
+import {
+  useGGDealsQueue,
+  useGGDealsQuota,
+  useSteamMetadataQueue,
+  useTimersStatus
+} from '@renderer/hooks/useQueues'
 import { useSessionLogEntries, useSessionLogSessions } from '@renderer/hooks/useSessionLog'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { useSyncSteamWishlist } from '@renderer/hooks/useWishlist'
@@ -202,6 +207,7 @@ function TimerStatusCard({ timer }: { timer: TimerStatus }) {
   const { data: resolveStatus } = useMetadataResolveStatus()
   const resolvingMetadata = resolveStatus?.resolving ?? false
   const [forcingOfertas, setForcingOfertas] = useState(false)
+  const { data: quota } = useGGDealsQuota()
 
   const lastRunAt = timer.lastRunAt ? dayjs(timer.lastRunAt) : null
   const nextRunAtMs = timer.lastRunAt
@@ -308,6 +314,16 @@ function TimerStatusCard({ timer }: { timer: TimerStatus }) {
             : `Próxima em: ${nextRunAtMs !== null ? formatCountdown(remainingMs) : '—'}`}
         </TimerDetail>
         <TimerDetail>Última: {lastRunAt ? lastRunAt.format('DD/MM HH:mm') : '—'}</TimerDetail>
+        {timer.key === 'ofertas' && (
+          <Tooltip title="Estimativa a partir da última resposta real do GG.deals nesta sessão — não persiste entre reinícios do app. Use pra calibrar 'jogos por ciclo' sem estourar o limite de 1000/hora da conta.">
+            <TimerDetail>
+              Cota GG.deals:{' '}
+              {quota?.remaining != null
+                ? `${quota.limit - quota.remaining}/${quota.limit} usados`
+                : '— (sem chamada nesta sessão ainda)'}
+            </TimerDetail>
+          </Tooltip>
+        )}
 
         <TimerControls>
           <Tooltip title={TIMER_INTERVAL_TOOLTIP}>

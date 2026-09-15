@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Empty, Row, Col, Space, Spin, Tag, Typography, Pagination } from 'antd'
+import { Button, Empty, Row, Col, Space, Spin, Tag, Tooltip, Typography, Pagination } from 'antd'
+import { FireOutlined } from '@ant-design/icons'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
 import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
 import { useDeals } from '@renderer/hooks/useDeals'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
-import { getBestCurrentPrice, getDisplayDiscountPercent, isAtOrBelowHistoricalLow } from '@shared/dealPricing'
+import {
+  getBestCurrentPrice,
+  getDisplayDiscountPercent,
+  isAtOrBelowHistoricalLow,
+  qualifiesAsDeal
+} from '@shared/dealPricing'
 import type { FilterSettings } from '@shared/types'
 
 const { Title } = Typography
@@ -20,8 +26,15 @@ export function DashboardPage() {
 
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
+  const [hotDealsOnly, setHotDealsOnly] = useState(false)
 
   const filters = settings?.filters
+  const notifyRules = settings
+    ? {
+        minDiscountPercent: settings.polling.notifyMinDiscountPercent,
+        notifyOnHistoricalLow: settings.polling.notifyOnHistoricalLow
+      }
+    : null
 
   const genreCounts = new Map<string, number>()
   for (const deal of deals) {
@@ -51,6 +64,8 @@ export function DashboardPage() {
             deal.genres.some((genre) => filters.selectedGenres.includes(genre))
         )
         .filter((deal) => !filters.onlyHistoricalLow || isAtOrBelowHistoricalLow(deal))
+        .filter((deal) => !hotDealsOnly || (notifyRules !== null && qualifiesAsDeal(deal, notifyRules)))
+        .filter((deal) => filters.includeDlc || !deal.isDlc)
     : []
 
   // Quem teve o preço reconferido mais recentemente (priceUpdatedAt) aparece primeiro — cobre tanto
@@ -70,7 +85,9 @@ export function DashboardPage() {
     filters?.selectedGenres,
     filters?.minPrice,
     filters?.maxPrice,
-    filters?.onlyHistoricalLow
+    filters?.onlyHistoricalLow,
+    filters?.includeDlc,
+    hotDealsOnly
   ])
 
   const pagedDeals = sortedDeals.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -91,6 +108,16 @@ export function DashboardPage() {
           {sortedDeals.length > 0 && <Tag color="blue">{sortedDeals.length} promoções</Tag>}
         </Title>
         <Space size="middle">
+          <Tooltip title="Mostra só ofertas que atingem a regra de notificação configurada (Configurações) — o mesmo critério que decide se o app te avisa de uma oferta.">
+            <Button
+              type={hotDealsOnly ? 'primary' : 'default'}
+              danger={hotDealsOnly}
+              icon={<FireOutlined />}
+              onClick={() => setHotDealsOnly((value) => !value)}
+            >
+              Hot Deals
+            </Button>
+          </Tooltip>
           <RefreshCountdown dataUpdatedAt={dataUpdatedAt} />
         </Space>
       </div>

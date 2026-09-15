@@ -4,7 +4,9 @@ import type {
   GameAchievements,
   GameDeal,
   GameMetadata,
+  GGDealsQuotaStatus,
   HistoryEvent,
+  LocalPriceRecord,
   OwnedGame,
   QueueEntry,
   SessionLogEntry,
@@ -57,7 +59,8 @@ const api = {
   },
   queues: {
     getGGDeals: (): Promise<QueueEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetGGDeals),
-    getSteamMetadata: (): Promise<QueueEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetSteamMetadata)
+    getSteamMetadata: (): Promise<QueueEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetSteamMetadata),
+    getGGDealsQuota: (): Promise<GGDealsQuotaStatus> => ipcRenderer.invoke(IPC_CHANNELS.queuesGetGGDealsQuota)
   },
   timers: {
     getAll: (): Promise<TimerStatus[]> => ipcRenderer.invoke(IPC_CHANNELS.timersGetAll)
@@ -69,6 +72,10 @@ const api = {
   achievements: {
     get: (appId: number): Promise<GameAchievements | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.achievementsGet, appId)
+  },
+  priceHistory: {
+    getForAppId: (appId: number): Promise<LocalPriceRecord | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.priceHistoryGetForAppId, appId)
   },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest),

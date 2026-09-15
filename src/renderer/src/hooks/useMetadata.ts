@@ -58,3 +58,11 @@ export function useGameAchievements(appId: number | null) {
     retry: false
   })
 }
+
+export function usePriceHistory(appId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['price-history', appId],
+    queryFn: () => window.api.priceHistory.getForAppId(appId as number),
+    enabled: enabled && appId !== null
+  })
+}

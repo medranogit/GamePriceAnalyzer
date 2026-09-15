@@ -86,7 +86,9 @@ export function applyMetadataToDeal(
     nextTrailers === deal.trailers &&
     deal.steamPrice === metadata.steamPrice &&
     deal.steamDiscountPercent === metadata.steamDiscountPercent &&
-    deal.steamFullPrice === metadata.steamFullPrice
+    deal.steamFullPrice === metadata.steamFullPrice &&
+    (deal.isDlc ?? false) === metadata.isDlc &&
+    (deal.parentAppId ?? null) === metadata.parentAppId
   if (isUpToDate) return deal
 
   return {
@@ -103,7 +105,9 @@ export function applyMetadataToDeal(
     trailers: nextTrailers,
     steamPrice: metadata.steamPrice,
     steamDiscountPercent: metadata.steamDiscountPercent,
-    steamFullPrice: metadata.steamFullPrice
+    steamFullPrice: metadata.steamFullPrice,
+    isDlc: metadata.isDlc,
+    parentAppId: metadata.parentAppId
   }
 }
 

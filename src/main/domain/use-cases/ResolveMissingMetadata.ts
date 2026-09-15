@@ -6,6 +6,8 @@ import { syncAllCachedDeals, syncCachedDealsForAppId } from '../dealMetadataSync
 import { isMetadataIncomplete } from '../isMetadataIncomplete'
 import { describeMetadata } from '../describeMetadata'
 
+const MAX_CONSECUTIVE_FAILURES = 3
+
 export interface ResolveMissingMetadataResult {
   resolved: number
   failed: number
@@ -34,6 +36,13 @@ export type ResolveMissingMetadataScope = 'all' | 'library'
 export class ResolveMissingMetadata {
   private inFlight: Promise<ResolveMissingMetadataResult> | null = null
   private cancelled = false
+  // Em memória (zera ao reiniciar o app, de propósito — dá uma nova chance depois de um restart) —
+  // conta falhas consecutivas *entre ciclos* de backfill pra cada AppID. 3 falhas espaçadas por ciclos
+  // inteiros (não tentativas rápidas seguidas) é um sinal forte de que o jogo saiu da loja da Steam, não
+  // uma falha de rede passageira. Quem entra em `unresolvable` para de ser tentado automaticamente, pra
+  // não desperdiçar chamada/tempo com o mesmo jogo morto pra sempre.
+  private readonly consecutiveFailures = new Map<number, number>()
+  private readonly unresolvable = new Set<number>()
 
   constructor(
     private readonly cacheRepository: AppCacheRepository,
@@ -70,14 +79,27 @@ export class ResolveMissingMetadata {
     for (const game of this.cacheRepository.getOwnedGames()) {
       targetsByAppId.set(game.appId, { appId: game.appId, title: game.name })
     }
-    const missing = [...targetsByAppId.values()].filter((item) =>
+    // DLC de jogo possuído entra como alvo de metadata mesmo sem estar em `FetchOwnableDeals` (isso só
+    // acontece pra DLC que a Steam, por acaso, também lista como possuída) — sem isso, essa DLC nunca
+    // teria título/capa resolvidos pra exibir na tela de detalhe da Biblioteca.
+    for (const game of this.cacheRepository.getOwnedGames()) {
+      const gameMetadata = this.cacheRepository.getMetadata(game.appId)
+      for (const dlcAppId of gameMetadata?.dlcAppIds ?? []) {
+        if (!targetsByAppId.has(dlcAppId)) {
+          targetsByAppId.set(dlcAppId, { appId: dlcAppId, title: `DLC ${dlcAppId}` })
+        }
+      }
+    }
+    const incomplete = [...targetsByAppId.values()].filter((item) =>
       isMetadataIncomplete(this.cacheRepository.getMetadata(item.appId))
     )
+    const missing = incomplete.filter((item) => !this.unresolvable.has(item.appId))
+    const skippedUnresolvableCount = incomplete.length - missing.length
 
     const scopeLabel = scope === 'library' ? 'biblioteca' : 'wishlist + biblioteca'
     this.sessionLogRepository.log(
       'info',
-      `Resolvendo metadata da Steam (${scopeLabel}): ${missing.length} jogo(s) sem metadata completa em cache.`
+      `Resolvendo metadata da Steam (${scopeLabel}): ${missing.length} jogo(s) sem metadata completa em cache${skippedUnresolvableCount > 0 ? ` (${skippedUnresolvableCount} marcado(s) como não resolvível ignorado(s))` : ''}.`
     )
 
     let resolved = 0
@@ -94,13 +116,28 @@ export class ResolveMissingMetadata {
       if (metadata) {
         this.cacheRepository.setMetadata(metadata)
         resolved += 1
+        this.consecutiveFailures.delete(item.appId)
         synced += syncCachedDealsForAppId(this.cacheRepository, item.appId, metadata)
         const message = `Metadata resolvida pra "${item.title}": ${describeMetadata(metadata)}.`
         this.sessionLogRepository.log('success', message)
         this.historyRepository.addEvent('metadata_backfill', message, item.appId)
       } else {
         failed += 1
-        this.sessionLogRepository.log('warn', `Não consegui metadata da Steam pra "${item.title}".`)
+        const failureCount = (this.consecutiveFailures.get(item.appId) ?? 0) + 1
+        if (failureCount >= MAX_CONSECUTIVE_FAILURES) {
+          this.consecutiveFailures.delete(item.appId)
+          this.unresolvable.add(item.appId)
+          this.sessionLogRepository.log(
+            'warn',
+            `"${item.title}" (AppID ${item.appId}) falhou ${failureCount}x seguidas no backfill — marcado como não resolvível, não tenta mais automaticamente até o app reiniciar.`
+          )
+        } else {
+          this.consecutiveFailures.set(item.appId, failureCount)
+          this.sessionLogRepository.log(
+            'warn',
+            `Não consegui metadata da Steam pra "${item.title}" (${failureCount}/${MAX_CONSECUTIVE_FAILURES} falha(s) seguida(s)).`
+          )
+        }
       }
     }
 

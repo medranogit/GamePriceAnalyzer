@@ -26,6 +26,8 @@ export const IPC_CHANNELS = {
   metadataGetAll: 'metadata:getAll',
   metadataRefreshAll: 'metadata:refreshAll',
   queuesGetGGDeals: 'queues:getGGDeals',
+  queuesGetGGDealsQuota: 'queues:getGGDealsQuota',
+  priceHistoryGetForAppId: 'priceHistory:getForAppId',
   queuesGetSteamMetadata: 'queues:getSteamMetadata',
   timersGetAll: 'timers:getAll',
   localMediaOpenGameFolder: 'localMedia:openGameFolder',

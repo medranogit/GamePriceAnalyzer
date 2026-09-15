@@ -1,21 +1,24 @@
 import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Empty, message, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, Empty, message, Modal, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
   ExportOutlined,
   FolderOpenOutlined,
+  HistoryOutlined,
   KeyOutlined,
   ShopOutlined,
   SyncOutlined,
   TrophyOutlined
 } from '@ant-design/icons'
 import styled from 'styled-components'
+import dayjs from 'dayjs'
 import { useDeals, useWishlistDealsCache } from '@renderer/hooks/useDeals'
-import { useResolveGameMetadata, useResolveOneProgress } from '@renderer/hooks/useMetadata'
+import { usePriceHistory, useResolveGameMetadata, useResolveOneProgress } from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatPrice } from '@renderer/lib/formatters'
 import { getBestCurrentPrice, getBestHistoricalLow } from '@shared/dealPricing'
+import type { PricePoint } from '@shared/types'
 
 const { Text } = Typography
 
@@ -98,6 +101,12 @@ const StoreValue = styled.div`
   font-weight: 600;
 `
 
+const BottomActionsRow = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+`
+
 const RETAIL_ACCENT = '#1fa89e'
 const KEYSHOP_ACCENT = '#9254de'
 const HISTORICAL_ACCENT = '#d4a72c'
@@ -113,7 +122,12 @@ export function GameDetailPage() {
   const { data: resolveProgress } = useResolveOneProgress(deal?.appId ?? -1, resolveMetadata.isPending)
   const [mediaRefreshToken, setMediaRefreshToken] = useState(0)
   const [openingMediaFolder, setOpeningMediaFolder] = useState(false)
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false)
   const autoResolveTriggeredRef = useRef(false)
+  const { data: priceHistoryRecord, isLoading: isLoadingPriceHistory } = usePriceHistory(
+    deal?.appId ?? null,
+    priceHistoryOpen
+  )
 
   if (!deal) {
     return (
@@ -225,6 +239,12 @@ export function GameDetailPage() {
         </Space>
       </TopBar>
 
+      {deal.isDlc && (
+        <Tag color="purple" style={{ marginBottom: 12 }}>
+          DLC
+        </Tag>
+      )}
+
       <GameHero
         title={deal.title}
         coverUrl={deal.coverUrl}
@@ -310,15 +330,66 @@ export function GameDetailPage() {
       </StoreGrid>
 
       {deal.ggDealsUrl && (
-        <a
-          href={deal.ggDealsUrl}
-          target="_blank"
-          rel="noreferrer"
-          style={{ display: 'block', marginTop: 16 }}
-        >
-          Ver todas as lojas no GG.deals
-        </a>
+        <BottomActionsRow>
+          <Button
+            type="primary"
+            icon={<ExportOutlined />}
+            href={deal.ggDealsUrl}
+            target="_blank"
+            rel="noreferrer"
+            size="large"
+            style={{ flex: 7 }}
+          >
+            Ver todas as lojas no GG.deals
+          </Button>
+          {deal.appId !== null && (
+            <Tooltip title="Histórico de todos os preços que este programa já coletou pra este jogo">
+              <Button
+                icon={<HistoryOutlined />}
+                size="large"
+                style={{ flex: 3 }}
+                onClick={() => setPriceHistoryOpen(true)}
+              >
+                Histórico de preços
+              </Button>
+            </Tooltip>
+          )}
+        </BottomActionsRow>
       )}
+
+      <Modal
+        title={`Histórico de preços · ${deal.title}`}
+        open={priceHistoryOpen}
+        onCancel={() => setPriceHistoryOpen(false)}
+        footer={null}
+        width={640}
+      >
+        <Table<PricePoint>
+          size="small"
+          loading={isLoadingPriceHistory}
+          dataSource={[...(priceHistoryRecord?.history ?? [])].reverse()}
+          rowKey={(point) => point.timestamp}
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: 'Ainda não coletamos nenhuma mudança de preço pra este jogo.' }}
+          columns={[
+            {
+              title: 'Data/hora',
+              dataIndex: 'timestamp',
+              render: (timestamp: string) => dayjs(timestamp).format('DD/MM/YYYY, HH:mm:ss')
+            },
+            {
+              title: 'Loja oficial',
+              dataIndex: 'retailPrice',
+              render: (price: number | null, point) => formatPrice(point.currency, price)
+            },
+            {
+              title: 'Keyshop',
+              dataIndex: 'keyshopPrice',
+              render: (price: number | null, point) => formatPrice(point.currency, price)
+            }
+          ]}
+        />
+      </Modal>
     </div>
   )
 }

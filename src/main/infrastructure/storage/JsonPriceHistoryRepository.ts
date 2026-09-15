@@ -26,7 +26,8 @@ export class JsonPriceHistoryRepository implements PriceHistoryRepository {
       lowestRetail: current?.lowestRetail ?? null,
       lowestRetailAt: current?.lowestRetailAt ?? null,
       lowestKeyshop: current?.lowestKeyshop ?? null,
-      lowestKeyshopAt: current?.lowestKeyshopAt ?? null
+      lowestKeyshopAt: current?.lowestKeyshopAt ?? null,
+      history: current?.history ?? []
     }
 
     const now = new Date().toISOString()
@@ -39,6 +40,15 @@ export class JsonPriceHistoryRepository implements PriceHistoryRepository {
     if (keyshopPrice !== null && (next.lowestKeyshop === null || keyshopPrice < next.lowestKeyshop)) {
       next.lowestKeyshop = keyshopPrice
       next.lowestKeyshopAt = now
+    }
+
+    // Só entra um ponto novo no log quando o preço realmente mudou desde a última observação — do
+    // contrário um jogo parado geraria uma entrada idêntica a cada ciclo, pra sempre.
+    const lastPoint = next.history[next.history.length - 1]
+    const changed =
+      !lastPoint || lastPoint.retailPrice !== retailPrice || lastPoint.keyshopPrice !== keyshopPrice
+    if (changed) {
+      next.history = [...next.history, { timestamp: now, currency: next.currency, retailPrice, keyshopPrice }]
     }
 
     const state = this.store.read()

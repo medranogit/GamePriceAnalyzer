@@ -45,14 +45,22 @@ export class FetchOwnableDeals {
 
   async execute(): Promise<GameDeal[]> {
     const ownedAppIds = new Set(this.cacheRepository.getOwnedGames().map((g) => g.appId))
-    const allCandidateAppIds = this.cacheRepository.getWishlist().map((w) => w.appId)
+    const wishlistAppIds = this.cacheRepository.getWishlist().map((w) => w.appId)
+    // DLC de jogo já possuído na Biblioteca entra como candidato mesmo sem estar na wishlist (a Steam
+    // não permite isso pra DLC) — a própria metadata do jogo base já lista os AppIDs de DLC dele
+    // (`dlcAppIds`), preenchida pelo backfill de metadata que já roda de qualquer forma.
+    const dlcCandidateAppIds = this.cacheRepository
+      .getAllMetadata()
+      .filter((metadata) => ownedAppIds.has(metadata.appId))
+      .flatMap((metadata) => metadata.dlcAppIds ?? [])
+    const allCandidateAppIds = [...new Set([...wishlistAppIds, ...dlcCandidateAppIds])]
     const candidateAppIds = allCandidateAppIds.filter((appId) => !ownedAppIds.has(appId))
     const ownedSkippedCount = allCandidateAppIds.length - candidateAppIds.length
     const candidateSet = new Set(candidateAppIds)
 
     this.sessionLogRepository.log(
       'info',
-      `Candidatos: ${candidateAppIds.length} jogo(s) da wishlist (${ownedSkippedCount} já possuído(s) descartado(s)).`
+      `Candidatos: ${candidateAppIds.length} jogo(s)/DLC(s) da wishlist e biblioteca (${ownedSkippedCount} já possuído(s) descartado(s)).`
     )
 
     // Remove do cache quem não é mais candidato (saiu da wishlist ou foi adquirido).
@@ -262,7 +270,9 @@ export class FetchOwnableDeals {
         metacriticScore: metadata?.metacriticScore ?? deal.metacriticScore ?? null,
         recommendationsTotal: metadata?.recommendationsTotal ?? deal.recommendationsTotal ?? null,
         screenshots: metadata?.screenshots ?? deal.screenshots ?? [],
-        trailers: metadata?.trailers ?? deal.trailers ?? []
+        trailers: metadata?.trailers ?? deal.trailers ?? [],
+        isDlc: metadata?.isDlc ?? deal.isDlc ?? false,
+        parentAppId: metadata?.parentAppId ?? deal.parentAppId ?? null
       })
     }
 

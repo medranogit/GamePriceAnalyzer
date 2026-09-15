@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Empty, message, Progress, Space, Tooltip, Typography } from 'antd'
+import { Button, Empty, message, Progress, Space, Tag, Tooltip, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
@@ -17,8 +17,10 @@ import {
   useResolveGameMetadata,
   useResolveOneProgress
 } from '@renderer/hooks/useMetadata'
+import { useDeals } from '@renderer/hooks/useDeals'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
-import { formatDate } from '@renderer/lib/formatters'
+import { formatDate, formatPrice } from '@renderer/lib/formatters'
+import { getBestCurrentPrice } from '@shared/dealPricing'
 
 const { Text } = Typography
 
@@ -112,6 +114,47 @@ const AchievementsMoreTile = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
 `
 
+const DlcList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+`
+
+const DlcRow = styled.a`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`
+
+const DlcThumb = styled.img`
+  width: 64px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: ${({ theme }) => theme.colors.border};
+`
+
+const DlcTitle = styled.div`
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+`
+
 const MAX_VISIBLE_ACHIEVEMENTS = 30
 
 const PLAYTIME_ACCENT = '#1fa89e'
@@ -124,12 +167,14 @@ export function LibraryGameDetailPage() {
 
   const { data: games = [] } = useLibrary()
   const { data: metadataList = [] } = useMetadataCache()
+  const { data: deals = [] } = useDeals()
   const { data: achievements } = useGameAchievements(numericAppId)
   const resolveMetadata = useResolveGameMetadata()
   const { data: resolveProgress } = useResolveOneProgress(numericAppId ?? -1, resolveMetadata.isPending)
   const [openingMediaFolder, setOpeningMediaFolder] = useState(false)
   const [mediaRefreshToken, setMediaRefreshToken] = useState(0)
   const autoResolveTriggeredRef = useRef(false)
+  const triggeredDlcResolveRef = useRef<Set<number>>(new Set())
 
   const game = games.find((g) => String(g.appId) === appId)
   const metadata = metadataList.find((m) => String(m.appId) === appId)
@@ -140,6 +185,20 @@ export function LibraryGameDetailPage() {
   useEffect(() => {
     autoResolveTriggeredRef.current = false
   }, [metadata])
+
+  // Assim que a lista de DLCs desse jogo é conhecida, busca a metadata (título/capa) de quem ainda não
+  // está em cache — sem isso, a DLC só ganharia título real no próximo ciclo automático de backfill (até
+  // 1h de espera). `ThrottledGameMetadataRepository` já serializa/limita isso globalmente, então disparar
+  // várias de uma vez é seguro.
+  useEffect(() => {
+    for (const dlcAppId of metadata?.dlcAppIds ?? []) {
+      if (triggeredDlcResolveRef.current.has(dlcAppId)) continue
+      if (metadataList.some((m) => m.appId === dlcAppId)) continue
+      triggeredDlcResolveRef.current.add(dlcAppId)
+      resolveMetadata.mutate(dlcAppId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadata?.dlcAppIds, metadataList])
 
   if (!game) {
     return (
@@ -206,6 +265,22 @@ export function LibraryGameDetailPage() {
     : []
   const visibleAchievements = sortedAchievements.slice(0, MAX_VISIBLE_ACHIEVEMENTS)
   const hiddenAchievementsCount = sortedAchievements.length - visibleAchievements.length
+
+  const ownedAppIds = new Set(games.map((g) => g.appId))
+  // Não possuída primeiro (mais acionável — dá pra ver preço/clicar), depois por nome.
+  const dlcEntries = (metadata?.dlcAppIds ?? [])
+    .map((dlcAppId) => {
+      const dlcMetadata = metadataList.find((m) => m.appId === dlcAppId)
+      const deal = deals.find((d) => d.appId === dlcAppId)
+      return {
+        appId: dlcAppId,
+        title: dlcMetadata?.title ?? deal?.title ?? `DLC ${dlcAppId}`,
+        coverUrl: dlcMetadata?.headerImageUrl ?? deal?.coverUrl ?? null,
+        owned: ownedAppIds.has(dlcAppId),
+        deal: deal ?? null
+      }
+    })
+    .sort((a, b) => Number(a.owned) - Number(b.owned) || a.title.localeCompare(b.title))
 
   return (
     <div>
@@ -324,7 +399,40 @@ export function LibraryGameDetailPage() {
             </>
           )}
         </div>
-        <div />
+        <div>
+          <SectionTitle>DLCs{dlcEntries.length > 0 ? ` (${dlcEntries.length})` : ''}</SectionTitle>
+          {metadata?.dlcAppIds === undefined ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="Ainda não sei quais DLCs esse jogo tem — busque os metadados da Steam acima."
+            />
+          ) : dlcEntries.length === 0 ? (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Este jogo não tem DLCs." />
+          ) : (
+            <DlcList>
+              {dlcEntries.map((entry) => (
+                <DlcRow
+                  key={entry.appId}
+                  href={`https://store.steampowered.com/app/${entry.appId}/`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {entry.coverUrl && <DlcThumb src={entry.coverUrl} alt={entry.title} />}
+                  <DlcTitle>{entry.title}</DlcTitle>
+                  {entry.owned ? (
+                    <Tag color="green">Possui</Tag>
+                  ) : entry.deal ? (
+                    <Tag color="gold">
+                      {formatPrice(entry.deal.currency, getBestCurrentPrice(entry.deal)?.price ?? null)}
+                    </Tag>
+                  ) : (
+                    <Tag>Não possui</Tag>
+                  )}
+                </DlcRow>
+              ))}
+            </DlcList>
+          )}
+        </div>
       </ContentColumns>
     </div>
   )

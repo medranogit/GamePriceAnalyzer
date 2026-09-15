@@ -1,10 +1,16 @@
 import { Tag } from 'antd'
-import { ShopOutlined, KeyOutlined, TrophyOutlined } from '@ant-design/icons'
+import { ShopOutlined, KeyOutlined, TrophyOutlined, FireOutlined } from '@ant-design/icons'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import type { GameDeal } from '@shared/types'
-import { getBestCurrentPrice, getBestHistoricalLow, getDisplayDiscountPercent } from '@shared/dealPricing'
+import {
+  getBestCurrentPrice,
+  getBestHistoricalLow,
+  getDisplayDiscountPercent,
+  qualifiesAsDeal
+} from '@shared/dealPricing'
 import { GameCover } from '@renderer/components/GameCover/GameCover'
+import { useSettings } from '@renderer/hooks/useSettings'
 
 const CardWrapper = styled.div`
   position: relative;
@@ -110,10 +116,19 @@ interface DealCardProps {
 
 export function DealCard({ deal }: DealCardProps) {
   const navigate = useNavigate()
+  const { data: settings } = useSettings()
   const best = getBestCurrentPrice(deal)
   const historicalLow = getBestHistoricalLow(deal)
   const isHistoricalLow = best !== null && historicalLow !== null && best.price <= historicalLow
   const displayDiscountPercent = getDisplayDiscountPercent(deal)
+  // Mesmo critério que decide se uma oferta dispara notificação (Configurações) — categoriza aqui
+  // como "Hot Deal" pra bater com o filtro de mesmo nome na tela de Ofertas.
+  const isHotDeal = settings
+    ? qualifiesAsDeal(deal, {
+        minDiscountPercent: settings.polling.notifyMinDiscountPercent,
+        notifyOnHistoricalLow: settings.polling.notifyOnHistoricalLow
+      })
+    : false
 
   return (
     <CardWrapper onClick={() => deal.appId && navigate(`/game/${deal.appId}`)}>
@@ -130,6 +145,16 @@ export function DealCard({ deal }: DealCardProps) {
         <GameTitle title={deal.title}>{deal.title}</GameTitle>
 
         <GenreRow>
+          {isHotDeal && (
+            <Tag color="volcano" icon={<FireOutlined />} style={{ margin: 0 }}>
+              Hot Deal
+            </Tag>
+          )}
+          {deal.isDlc && (
+            <Tag color="purple" style={{ margin: 0 }}>
+              DLC
+            </Tag>
+          )}
           {deal.genres.slice(0, 2).map((genre) => (
             <Tag key={genre} style={{ margin: 0 }}>
               {genre}

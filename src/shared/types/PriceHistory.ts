@@ -1,3 +1,10 @@
+export interface PricePoint {
+  timestamp: string
+  currency: string | null
+  retailPrice: number | null
+  keyshopPrice: number | null
+}
+
 export interface LocalPriceRecord {
   appId: number
   currency: string | null
@@ -5,4 +12,5 @@ export interface LocalPriceRecord {
   lowestRetailAt: string | null
   lowestKeyshop: number | null
   lowestKeyshopAt: string | null
+  history: PricePoint[]
 }

@@ -37,6 +37,7 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       setPendingLibraryRefreshAppIds: noop
     },
     historyRepository: { getEvents: () => [], addEvent: noop, removeEvents: noop },
+    priceHistoryRepository: { getRecord: () => null, recordObservation: noop } as never,
     notificationService: { notifyDeal, notifyDealsBatch: noop, dismissAll: noop },
     notifiedDealsRepository: {
       alreadyNotifiedForPrice: () => false,
@@ -52,6 +53,7 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
     metadataBackfillScheduler: { setIntervalMinutes: noop, notifyExternalRun: noop } as never,
     ggDealsQueueTracker: { getSnapshot: () => [] } as never,
     steamMetadataQueueTracker: { getSnapshot: () => [] } as never,
+    ggDealsClient: { getQuotaStatus: () => ({ remaining: null, limit: 1000, checkedAt: null }) } as never,
     removeWishlistItem: { execute: noop } as never,
     scheduler: { runNow: noop, updateInterval: noop, start: noop, logStatus: noop } as never,
     secretsStore: { get: () => null, set: noop } as never,

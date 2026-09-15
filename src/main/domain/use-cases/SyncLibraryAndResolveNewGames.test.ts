@@ -102,7 +102,10 @@ function makeMetadata(appId: number): GameMetadata {
     metacriticScore: null,
     recommendationsTotal: null,
     screenshots: [],
-    trailers: []
+    trailers: [],
+    dlcAppIds: [],
+    isDlc: false,
+    parentAppId: null
   }
 }
 
