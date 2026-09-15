@@ -14,6 +14,7 @@ import {
 import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { useDeals, useWishlistDealsCache } from '@renderer/hooks/useDeals'
+import { useWishlist } from '@renderer/hooks/useWishlist'
 import { usePriceHistory, useResolveGameMetadata, useResolveOneProgress } from '@renderer/hooks/useMetadata'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatPrice } from '@renderer/lib/formatters'
@@ -116,6 +117,7 @@ export function GameDetailPage() {
   const navigate = useNavigate()
   const { data: deals = [] } = useDeals()
   const { data: wishlistDeals = [] } = useWishlistDealsCache()
+  const { data: wishlist = [] } = useWishlist()
   const deal =
     deals.find((d) => String(d.appId) === appId) ?? wishlistDeals.find((d) => String(d.appId) === appId)
   const resolveMetadata = useResolveGameMetadata()
@@ -241,7 +243,9 @@ export function GameDetailPage() {
 
       {deal.isDlc && (
         <Tag color="purple" style={{ marginBottom: 12 }}>
-          DLC
+          {deal.appId !== null && wishlist.some((item) => item.appId === deal.appId)
+            ? 'DLC · Wishlist'
+            : 'DLC · Biblioteca'}
         </Tag>
       )}
 

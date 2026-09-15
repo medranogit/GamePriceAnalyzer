@@ -134,7 +134,7 @@ describe('SyncLibraryAndResolveNewGames', () => {
     await useCase.execute('76561198000000000')
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'biblioteca')
     expect(cacheRepository.setMetadata).toHaveBeenCalledWith(makeMetadata(2))
     // Evento por-jogo com o nome e o appId — usado pela tela de Histórico pra listar
     // individualmente quem entrou na biblioteca, não só o total agregado.

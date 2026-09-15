@@ -329,8 +329,8 @@ describe('FetchOwnableDeals', () => {
     await useCase.execute()
 
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(1, 'ofertas')
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'ofertas')
   })
 
   it('reaproveita metadata já cacheada sem chamar o repositório de novo', async () => {
@@ -393,7 +393,13 @@ describe('FetchOwnableDeals', () => {
       screenshots: []
       // trailers ausente de propósito — simula cache de antes desse campo existir
     } as unknown as GameMetadata
-    const freshMetadata: GameMetadata = { ...incompleteMetadata, trailers: [] }
+    const freshMetadata: GameMetadata = {
+      ...incompleteMetadata,
+      trailers: [],
+      dlcAppIds: [],
+      isDlc: false,
+      parentAppId: null
+    }
     const fetchMetadata = vi.fn(async () => freshMetadata)
     const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds(() => [makeDeal(2)])
     const cacheRepository = makeCacheRepository({
@@ -412,7 +418,7 @@ describe('FetchOwnableDeals', () => {
 
     await useCase.execute()
 
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'ofertas')
   })
 
   it('não busca metadata de novo quando o jogo já tem trailers resolvidos como vazio (sem trailer na Steam mesmo)', async () => {

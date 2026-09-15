@@ -1,4 +1,4 @@
-import type { GameMetadata } from '@shared/types'
+import type { GameMetadata, QueueSource } from '@shared/types'
 import type { GameMetadataRepository } from '../../domain/repositories/GameMetadataRepository'
 import type { QueueActivityTracker } from '../../domain/QueueActivityTracker'
 
@@ -30,8 +30,8 @@ export class ThrottledGameMetadataRepository implements GameMetadataRepository {
     private readonly labelResolver?: (appId: number) => string
   ) {}
 
-  fetchMetadata(appId: number): Promise<GameMetadata | null> {
-    const queueId = this.tracker?.enqueue(this.labelResolver?.(appId) ?? `AppID ${appId}`)
+  fetchMetadata(appId: number, source?: QueueSource): Promise<GameMetadata | null> {
+    const queueId = this.tracker?.enqueue(this.labelResolver?.(appId) ?? `AppID ${appId}`, source)
 
     const result = this.queue.then(async () => {
       if (queueId !== undefined) this.tracker?.markRunning(queueId)

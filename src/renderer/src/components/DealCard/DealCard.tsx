@@ -47,20 +47,63 @@ const DiscountRibbon = styled.div`
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 `
 
-const HistoricalRibbon = styled.div`
+const TopLeftBadges = styled.div`
   position: absolute;
   top: 8px;
   left: 8px;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+`
+
+const BottomScrim = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  pointer-events: none;
+`
+
+const BottomBadgeRow = styled.div`
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+`
+
+const Badge = styled.div`
+  display: flex;
   align-items: center;
   gap: 4px;
-  background: ${({ theme }) => theme.colors.warning};
-  color: #2b2100;
   font-weight: 600;
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
+
+const HistoricalBadge = styled(Badge)`
+  background: ${({ theme }) => theme.colors.warning};
+  color: #2b2100;
+`
+
+const HotDealBadge = styled(Badge)`
+  background: #fa541c;
+  color: #fff;
+`
+
+const DlcBadge = styled(Badge)`
+  background: #722ed1;
+  color: #fff;
 `
 
 const Body = styled.div`
@@ -112,9 +155,12 @@ const StoreLabel = styled.span`
 
 interface DealCardProps {
   deal: GameDeal
+  /** DLC que também está na wishlist do usuário (distingue de uma DLC trazida automaticamente só por ele
+   * já possuir o jogo base) — ignorado pra ofertas que não são DLC. */
+  inWishlist?: boolean
 }
 
-export function DealCard({ deal }: DealCardProps) {
+export function DealCard({ deal, inWishlist = false }: DealCardProps) {
   const navigate = useNavigate()
   const { data: settings } = useSettings()
   const best = getBestCurrentPrice(deal)
@@ -134,28 +180,33 @@ export function DealCard({ deal }: DealCardProps) {
     <CardWrapper onClick={() => deal.appId && navigate(`/game/${deal.appId}`)}>
       <GameCover url={deal.coverUrl} height={140}>
         {isHistoricalLow && (
-          <HistoricalRibbon>
-            <TrophyOutlined /> Menor histórico
-          </HistoricalRibbon>
+          <TopLeftBadges>
+            <HistoricalBadge>
+              <TrophyOutlined /> Menor histórico
+            </HistoricalBadge>
+          </TopLeftBadges>
         )}
         {displayDiscountPercent > 0 && <DiscountRibbon>-{displayDiscountPercent}%</DiscountRibbon>}
+        {(isHotDeal || deal.isDlc) && (
+          <>
+            <BottomScrim />
+            <BottomBadgeRow>
+              {isHotDeal && (
+                <HotDealBadge>
+                  <FireOutlined /> Hot Deal
+                </HotDealBadge>
+              )}
+              {deal.isDlc && <DlcBadge>{inWishlist ? 'DLC · Wishlist' : 'DLC · Biblioteca'}</DlcBadge>}
+            </BottomBadgeRow>
+          </>
+        )}
       </GameCover>
 
       <Body>
         <GameTitle title={deal.title}>{deal.title}</GameTitle>
 
         <GenreRow>
-          {isHotDeal && (
-            <Tag color="volcano" icon={<FireOutlined />} style={{ margin: 0 }}>
-              Hot Deal
-            </Tag>
-          )}
-          {deal.isDlc && (
-            <Tag color="purple" style={{ margin: 0 }}>
-              DLC
-            </Tag>
-          )}
-          {deal.genres.slice(0, 2).map((genre) => (
+          {deal.genres.slice(0, 3).map((genre) => (
             <Tag key={genre} style={{ margin: 0 }}>
               {genre}
             </Tag>

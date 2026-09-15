@@ -106,8 +106,8 @@ describe('RefreshLibraryMetadata', () => {
     const result = await resultPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(1, 'refresh')
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'refresh')
     expect(result.refreshed).toBe(2)
     expect(historyRepository.addEvent).toHaveBeenCalledWith(
       'metadata_refresh',
@@ -201,8 +201,8 @@ describe('RefreshLibraryMetadata', () => {
     await secondRunPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(3)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'refresh')
+    expect(fetchMetadata).toHaveBeenCalledWith(3, 'refresh')
     expect(cacheRepository.getPendingLibraryRefreshAppIds()).toEqual([])
   })
 

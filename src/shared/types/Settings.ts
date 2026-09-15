@@ -5,8 +5,6 @@ export interface FilterSettings {
   includeKeyshops: boolean
   selectedGenres: string[]
   onlyHistoricalLow: boolean
-  /** Mostra DLCs descobertas a partir de jogos já possuídos na Biblioteca, junto com as ofertas normais. */
-  includeDlc: boolean
 }
 
 export interface PollingSettings {
@@ -59,8 +57,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maxPrice: null,
     includeKeyshops: true,
     selectedGenres: [],
-    onlyHistoricalLow: false,
-    includeDlc: true
+    onlyHistoricalLow: false
   },
   polling: {
     intervalMinutes: 70,

@@ -122,7 +122,7 @@ describe('SyncSteamWishlist', () => {
     await vi.runAllTimersAsync()
     const result = await resultPromise
 
-    expect(fetchMetadata).toHaveBeenCalledWith(999)
+    expect(fetchMetadata).toHaveBeenCalledWith(999, 'wishlist')
     expect(result[0].title).toBe('Novo Jogo')
     expect(historyRepository.addEvent).toHaveBeenCalledWith(
       'wishlist_import',

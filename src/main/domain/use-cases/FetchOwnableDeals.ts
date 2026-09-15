@@ -247,7 +247,9 @@ export class FetchOwnableDeals {
         )
         newlyResolvedCount += 1
       }
-      const metadata = needsFetch ? await this.metadataRepository.fetchMetadata(deal.appId) : cached
+      const metadata = needsFetch
+        ? await this.metadataRepository.fetchMetadata(deal.appId, 'ofertas')
+        : cached
       if (metadata && needsFetch) {
         this.cacheRepository.setMetadata(metadata)
         this.sessionLogRepository.log(

@@ -85,7 +85,7 @@ describe('FetchSingleGameMetadata', () => {
     const result = await useCase.execute(1)
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(1)
+    expect(fetchMetadata).toHaveBeenCalledWith(1, 'manual')
     expect(result?.title).toBe('Game 1')
     expect(cacheRepository.getMetadata(1)).toEqual(makeMetadata(1))
   })

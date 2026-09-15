@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Button, Empty, Row, Col, Space, Spin, Tag, Tooltip, Typography, Pagination } from 'antd'
-import { FireOutlined } from '@ant-design/icons'
+import { FireOutlined, GiftOutlined } from '@ant-design/icons'
 import { FilterBar } from '@renderer/components/FilterBar/FilterBar'
 import { DealCard } from '@renderer/components/DealCard/DealCard'
 import { RefreshCountdown } from '@renderer/components/RefreshCountdown/RefreshCountdown'
 import { useDeals } from '@renderer/hooks/useDeals'
+import { useWishlist } from '@renderer/hooks/useWishlist'
 import { useSettings, useUpdateSettings } from '@renderer/hooks/useSettings'
 import { matchesSearchTokens } from '@renderer/lib/matchesSearchTokens'
 import {
@@ -23,10 +24,14 @@ export function DashboardPage() {
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
   const { data: deals = [], isLoading, dataUpdatedAt } = useDeals()
+  const { data: wishlist = [] } = useWishlist()
 
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [hotDealsOnly, setHotDealsOnly] = useState(false)
+  const [dlcOnly, setDlcOnly] = useState(false)
+
+  const wishlistAppIds = new Set(wishlist.map((item) => item.appId))
 
   const filters = settings?.filters
   const notifyRules = settings
@@ -65,7 +70,7 @@ export function DashboardPage() {
         )
         .filter((deal) => !filters.onlyHistoricalLow || isAtOrBelowHistoricalLow(deal))
         .filter((deal) => !hotDealsOnly || (notifyRules !== null && qualifiesAsDeal(deal, notifyRules)))
-        .filter((deal) => filters.includeDlc || !deal.isDlc)
+        .filter((deal) => !dlcOnly || deal.isDlc)
     : []
 
   // Quem teve o preço reconferido mais recentemente (priceUpdatedAt) aparece primeiro — cobre tanto
@@ -86,8 +91,8 @@ export function DashboardPage() {
     filters?.minPrice,
     filters?.maxPrice,
     filters?.onlyHistoricalLow,
-    filters?.includeDlc,
-    hotDealsOnly
+    hotDealsOnly,
+    dlcOnly
   ])
 
   const pagedDeals = sortedDeals.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -118,6 +123,15 @@ export function DashboardPage() {
               Hot Deals
             </Button>
           </Tooltip>
+          <Tooltip title="Mostra só DLCs — inclusive as que o programa trouxe automaticamente por você já possuir o jogo base, mesmo sem estarem na sua wishlist.">
+            <Button
+              type={dlcOnly ? 'primary' : 'default'}
+              icon={<GiftOutlined />}
+              onClick={() => setDlcOnly((value) => !value)}
+            >
+              DLCs
+            </Button>
+          </Tooltip>
           <RefreshCountdown dataUpdatedAt={dataUpdatedAt} />
         </Space>
       </div>
@@ -139,7 +153,7 @@ export function DashboardPage() {
           <Row gutter={[16, 16]}>
             {pagedDeals.map((deal) => (
               <Col key={deal.appId ?? deal.title} xs={24} sm={12} md={8} lg={6}>
-                <DealCard deal={deal} />
+                <DealCard deal={deal} inWishlist={deal.appId !== null && wishlistAppIds.has(deal.appId)} />
               </Col>
             ))}
           </Row>

@@ -44,7 +44,8 @@ export class SyncSteamWishlist {
         if (!cachedMetadata) {
           this.sessionLogRepository.log('info', `AppID ${entry.appId} é novo — buscando metadata na Steam...`)
         }
-        const metadata = cachedMetadata ?? (await this.metadataRepository.fetchMetadata(entry.appId))
+        const metadata =
+          cachedMetadata ?? (await this.metadataRepository.fetchMetadata(entry.appId, 'wishlist'))
         if (metadata && !cachedMetadata) {
           this.cacheRepository.setMetadata(metadata)
         }

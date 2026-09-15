@@ -41,7 +41,7 @@ export class SyncLibraryAndResolveNewGames {
           'info',
           `Jogo novo na biblioteca — buscando metadata pra "${game.name}"...`
         )
-        const metadata = await this.metadataRepository.fetchMetadata(game.appId)
+        const metadata = await this.metadataRepository.fetchMetadata(game.appId, 'biblioteca')
         if (metadata) {
           this.cacheRepository.setMetadata(metadata)
           syncCachedDealsForAppId(this.cacheRepository, game.appId, metadata)

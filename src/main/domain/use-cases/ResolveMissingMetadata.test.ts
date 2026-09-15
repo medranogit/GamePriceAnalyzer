@@ -142,7 +142,7 @@ describe('ResolveMissingMetadata', () => {
     const result = await resultPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'backfill')
     expect(cacheRepository.setMetadata).toHaveBeenCalledWith(makeMetadata(2))
     expect(result).toEqual({ resolved: 1, failed: 0, synced: 0 })
     // Evento por-jogo com appId — a tela de Histórico usa isso pra saber em qual aba (Biblioteca/
@@ -175,8 +175,8 @@ describe('ResolveMissingMetadata', () => {
     const result = await resultPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
-    expect(fetchMetadata).toHaveBeenCalledWith(3)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'backfill')
+    expect(fetchMetadata).toHaveBeenCalledWith(3, 'backfill')
     expect(result.resolved).toBe(2)
   })
 
@@ -199,8 +199,8 @@ describe('ResolveMissingMetadata', () => {
     await vi.runAllTimersAsync()
     const result = await resultPromise
 
-    expect(fetchMetadata).toHaveBeenCalledWith(100)
-    expect(fetchMetadata).toHaveBeenCalledWith(200)
+    expect(fetchMetadata).toHaveBeenCalledWith(100, 'backfill')
+    expect(fetchMetadata).toHaveBeenCalledWith(200, 'backfill')
     expect(result.resolved).toBe(2)
   })
 
@@ -224,7 +224,7 @@ describe('ResolveMissingMetadata', () => {
     const result = await resultPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(2)
+    expect(fetchMetadata).toHaveBeenCalledWith(2, 'backfill')
     expect(result.resolved).toBe(1)
   })
 
@@ -251,7 +251,7 @@ describe('ResolveMissingMetadata', () => {
       await vi.runAllTimersAsync()
       const result = await resultPromise
 
-      expect(fetchMetadata).toHaveBeenCalledWith(1)
+      expect(fetchMetadata).toHaveBeenCalledWith(1, 'backfill')
       expect(result.resolved).toBe(1)
     }
   )
@@ -395,7 +395,7 @@ describe('ResolveMissingMetadata', () => {
     const result = await resultPromise
 
     expect(fetchMetadata).toHaveBeenCalledTimes(1)
-    expect(fetchMetadata).toHaveBeenCalledWith(1)
+    expect(fetchMetadata).toHaveBeenCalledWith(1, 'backfill')
     expect(result).toEqual({ resolved: 1, failed: 0, synced: 0 })
   })
 

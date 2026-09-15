@@ -111,7 +111,7 @@ export class ResolveMissingMetadata {
       if (this.cancelled) break
 
       this.sessionLogRepository.log('info', `Buscando metadata da Steam pra "${item.title}"...`)
-      const metadata = await this.metadataRepository.fetchMetadata(item.appId)
+      const metadata = await this.metadataRepository.fetchMetadata(item.appId, 'backfill')
       processed += 1
       if (metadata) {
         this.cacheRepository.setMetadata(metadata)

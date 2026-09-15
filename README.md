@@ -15,7 +15,9 @@ sem notificar de jogos que você já possui na Steam.
 - **Notificações em background** (nativa do Windows + in-app) quando uma oferta atinge o desconto mínimo
   configurado, ou quando o preço atual iguala/supera o menor preço histórico do GG.deals.
 - **Dashboard de ofertas** com filtro por desconto mínimo, faixa de preço, gênero, keyshops, busca por
-  nome e um filtro/categorização **"Hot Deals"** (mesmo critério configurado pra notificação).
+  nome e filtros/categorizações **"Hot Deals"** (mesmo critério configurado pra notificação) e
+  **"DLCs"** (só DLCs, incluindo as trazidas automaticamente por você já possuir o jogo base — ver
+  [docs/DLCS.md](docs/DLCS.md)).
 - **Página de wishlist** como lista simples (sincronizar/filtrar/remover) — preço e detalhe de oferta
   ficam só no Dashboard, pra não duplicar informação.
 - **Fila de Chamadas**: tela dedicada com os 4 timers automáticos (Ofertas, Wishlist, Biblioteca,
@@ -27,7 +29,9 @@ sem notificar de jogos que você já possui na Steam.
 - Roda minimizado na bandeja do sistema, com opção de iniciar junto com o Windows.
 
 Quer entender o passo a passo de cada fluxo (sincronização, busca de ofertas, regra de desconto,
-notificações, onde cada dado fica salvo)? Veja [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
+notificações, onde cada dado fica salvo)? Veja [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md). Os 4
+timers automáticos e as filas de chamada estão em [docs/TIMERS-E-FILAS.md](docs/TIMERS-E-FILAS.md), e a
+descoberta/precificação de DLCs em [docs/DLCS.md](docs/DLCS.md).
 
 ## Stack
 

@@ -1,4 +1,4 @@
-import type { GameMetadata } from '@shared/types'
+import type { GameMetadata, QueueSource } from '@shared/types'
 import type { GameMetadataRepository } from '../../domain/repositories/GameMetadataRepository'
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository'
 import type { SingleGameFetchProgressTracker } from '../../domain/SingleGameFetchProgressTracker'
@@ -18,8 +18,8 @@ export class LocalTrailerCachingGameMetadataRepository implements GameMetadataRe
     private readonly progressTracker: SingleGameFetchProgressTracker
   ) {}
 
-  async fetchMetadata(appId: number): Promise<GameMetadata | null> {
-    const metadata = await this.inner.fetchMetadata(appId)
+  async fetchMetadata(appId: number, source?: QueueSource): Promise<GameMetadata | null> {
+    const metadata = await this.inner.fetchMetadata(appId, source)
     if (!metadata) return metadata
     if (!this.settingsRepository.get().downloadTrailersLocally) return metadata
 

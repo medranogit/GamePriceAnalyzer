@@ -1,4 +1,4 @@
-import type { QueueEntry } from '@shared/types'
+import type { QueueEntry, QueueSource } from '@shared/types'
 
 /**
  * Registro em memória (não persistido) da ordem de chamadas de uma fila — usado pela tela "Fila de
@@ -9,9 +9,9 @@ export class QueueActivityTracker {
   private entries: QueueEntry[] = []
   private nextId = 1
 
-  enqueue(label: string): number {
+  enqueue(label: string, source?: QueueSource): number {
     const id = this.nextId++
-    this.entries.push({ id, label, status: 'waiting' })
+    this.entries.push({ id, label, status: 'waiting', source })
     return id
   }
 

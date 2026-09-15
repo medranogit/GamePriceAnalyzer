@@ -90,7 +90,7 @@ export class RefreshLibraryMetadata {
       if (this.cancelled) break
 
       const title = targetsByAppId.get(appId) ?? `AppID ${appId}`
-      const metadata = await this.metadataRepository.fetchMetadata(appId)
+      const metadata = await this.metadataRepository.fetchMetadata(appId, 'refresh')
       processed += 1
       if (metadata) {
         this.cacheRepository.setMetadata(metadata)

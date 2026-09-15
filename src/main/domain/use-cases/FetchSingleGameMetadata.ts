@@ -43,7 +43,7 @@ export class FetchSingleGameMetadata {
 
     this.progressTracker.start(appId)
     try {
-      const metadata = await this.metadataRepository.fetchMetadata(appId)
+      const metadata = await this.metadataRepository.fetchMetadata(appId, 'manual')
       if (!metadata) {
         this.sessionLogRepository.log(
           'warn',

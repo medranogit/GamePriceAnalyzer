@@ -10,7 +10,7 @@ import {
 import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { useQueryClient } from '@tanstack/react-query'
-import type { QueueEntry, TimerStatus } from '@shared/types'
+import type { QueueEntry, QueueSource, TimerStatus } from '@shared/types'
 import {
   useGGDealsQueue,
   useGGDealsQuota,
@@ -138,32 +138,47 @@ const QueueTitle = styled.div`
 
 const Bar = styled.div`
   display: flex;
-  height: 48px;
+  height: 56px;
   border-radius: 8px;
   overflow: hidden;
   background: ${({ theme }) => theme.colors.background};
   border: 1px solid ${({ theme }) => theme.colors.border};
 `
 
-const Segment = styled.div<{ $running: boolean }>`
+const GroupBar = styled.div<{ $running: boolean }>`
   flex: 1 1 0;
   min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 2px;
+  padding: 0 14px;
   background: ${({ $running, theme }) => ($running ? theme.colors.primary : theme.colors.primaryHover)};
   opacity: ${({ $running }) => ($running ? 1 : 0.6)};
 
   & + & {
     border-left: 1px solid rgba(0, 0, 0, 0.25);
   }
+`
+
+const GroupSource = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
+
+const GroupLabel = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `
 
 const EmptyBar = styled.div`
@@ -387,6 +402,61 @@ function TimerStatusCard({ timer }: { timer: TimerStatus }) {
   )
 }
 
+const QUEUE_SOURCE_LABELS: Record<QueueSource, string> = {
+  ofertas: 'Ofertas',
+  wishlist: 'Wishlist',
+  biblioteca: 'Biblioteca',
+  backfill: 'Backfill de metadata',
+  refresh: 'Sobrescrever tudo',
+  manual: 'Busca manual'
+}
+
+interface SourceGroup {
+  key: string
+  source: QueueSource | null
+  itemLabel: string
+  /** Quantos itens dessa MESMA origem estão na fila agora — mostrado como "(+N)" em vez de virar um
+   * segmento por item (o que lotava a barra inteira quando um timer só, como o backfill, enfileira
+   * dezenas de DLCs cosméticas de uma vez). */
+  count: number
+  running: boolean
+}
+
+/**
+ * Agrupa por origem (qual timer pediu aquela busca) — cada origem vira UMA barra só, mesmo que tenha
+ * dezenas de itens esperando. A ordem de execução real não muda (continua sendo estritamente a ordem de
+ * chegada, de um por vez, dentro do ThrottledGameMetadataRepository); isso aqui é só a forma de exibir.
+ * Quem está executando de verdade fica na barra mais à esquerda.
+ */
+function groupBySource(entries: QueueEntry[]): SourceGroup[] {
+  const order: string[] = []
+  const bySource = new Map<string, QueueEntry[]>()
+  for (const entry of entries) {
+    const key = entry.source ?? 'geral'
+    if (!bySource.has(key)) {
+      order.push(key)
+      bySource.set(key, [])
+    }
+    bySource.get(key)?.push(entry)
+  }
+
+  const groups = order.map((key): SourceGroup => {
+    const items = bySource.get(key) ?? []
+    const runningItem = items.find((item) => item.status === 'running')
+    const representative = runningItem ?? items[0]
+    return {
+      key,
+      source: representative.source ?? null,
+      itemLabel: representative.label,
+      count: items.length,
+      running: runningItem !== undefined
+    }
+  })
+
+  groups.sort((a, b) => Number(b.running) - Number(a.running))
+  return groups
+}
+
 function QueueBar({ entries }: { entries: QueueEntry[] }) {
   if (entries.length === 0) {
     return (
@@ -396,12 +466,18 @@ function QueueBar({ entries }: { entries: QueueEntry[] }) {
     )
   }
 
+  const groups = groupBySource(entries)
+
   return (
     <Bar>
-      {entries.map((entry) => (
-        <Segment key={entry.id} $running={entry.status === 'running'} title={entry.label}>
-          {entry.label}
-        </Segment>
+      {groups.map((group) => (
+        <GroupBar key={group.key} $running={group.running} title={group.itemLabel}>
+          {group.source && <GroupSource>{QUEUE_SOURCE_LABELS[group.source]}</GroupSource>}
+          <GroupLabel>
+            {group.itemLabel}
+            {group.count > 1 ? ` (+${group.count - 1})` : ''}
+          </GroupLabel>
+        </GroupBar>
       ))}
     </Bar>
   )
