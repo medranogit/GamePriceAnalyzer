@@ -25,12 +25,14 @@ import type { FetchGameAchievements } from '../domain/use-cases/FetchGameAchieve
 import type { QueueActivityTracker } from '../domain/QueueActivityTracker'
 import type { GGDealsApiClient } from '../infrastructure/ggdeals/GGDealsApiClient'
 import type { PriceHistoryRepository } from '../domain/repositories/PriceHistoryRepository'
+import type { SetDlcManualOwnership } from '../domain/use-cases/SetDlcManualOwnership'
 
 interface Dependencies {
   settingsRepository: SettingsRepository
   cacheRepository: AppCacheRepository
   historyRepository: HistoryRepository
   priceHistoryRepository: PriceHistoryRepository
+  setDlcManualOwnership: SetDlcManualOwnership
   notificationService: NotificationService
   notifiedDealsRepository: NotifiedDealsRepository
   resolveMissingMetadata: ResolveMissingMetadata
@@ -233,6 +235,12 @@ export function registerIpcHandlers(deps: Dependencies): void {
 
   ipcMain.handle(IPC_CHANNELS.priceHistoryGetForAppId, (_event, appId: number) =>
     deps.priceHistoryRepository.getRecord(appId)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.dlcGetManuallyOwned, () => deps.cacheRepository.getManuallyOwnedDlcAppIds())
+
+  ipcMain.handle(IPC_CHANNELS.dlcSetManuallyOwned, (_event, appId: number, owned: boolean) =>
+    deps.setDlcManualOwnership.execute(appId, owned)
   )
 
   ipcMain.handle(IPC_CHANNELS.queuesGetSteamMetadata, () => deps.steamMetadataQueueTracker.getSnapshot())

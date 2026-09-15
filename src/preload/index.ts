@@ -77,6 +77,11 @@ const api = {
     getForAppId: (appId: number): Promise<LocalPriceRecord | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.priceHistoryGetForAppId, appId)
   },
+  dlc: {
+    getManuallyOwned: (): Promise<number[]> => ipcRenderer.invoke(IPC_CHANNELS.dlcGetManuallyOwned),
+    setManuallyOwned: (appId: number, owned: boolean): Promise<number[]> =>
+      ipcRenderer.invoke(IPC_CHANNELS.dlcSetManuallyOwned, appId, owned)
+  },
   notifications: {
     test: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notificationsTest),
     clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.notifiedDealsClear),

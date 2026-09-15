@@ -34,4 +34,12 @@ export interface AppCacheRepository {
    */
   getPendingLibraryRefreshAppIds(): number[]
   setPendingLibraryRefreshAppIds(appIds: number[]): void
+
+  /**
+   * DLCs que o usuário confirmou manualmente que já possui — a Steam não lista DLC em `GetOwnedGames`
+   * (nem mapas de expansão gratuitos), então não tem como detectar isso automaticamente. Uma vez marcada
+   * aqui, a DLC some das Ofertas do mesmo jeito que um jogo realmente possuído (ver FetchOwnableDeals).
+   */
+  getManuallyOwnedDlcAppIds(): number[]
+  setManuallyOwnedDlcAppIds(appIds: number[]): void
 }

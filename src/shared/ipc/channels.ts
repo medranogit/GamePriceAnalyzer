@@ -28,6 +28,8 @@ export const IPC_CHANNELS = {
   queuesGetGGDeals: 'queues:getGGDeals',
   queuesGetGGDealsQuota: 'queues:getGGDealsQuota',
   priceHistoryGetForAppId: 'priceHistory:getForAppId',
+  dlcGetManuallyOwned: 'dlc:getManuallyOwned',
+  dlcSetManuallyOwned: 'dlc:setManuallyOwned',
   queuesGetSteamMetadata: 'queues:getSteamMetadata',
   timersGetAll: 'timers:getAll',
   localMediaOpenGameFolder: 'localMedia:openGameFolder',

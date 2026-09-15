@@ -18,6 +18,7 @@ export class ElectronStoreAppCacheRepository implements AppCacheRepository {
     'library-metadata-refresh-progress.json',
     []
   )
+  private readonly manuallyOwnedDlcAppIdsStore = new JsonFileStore<number[]>('manually-owned-dlc.json', [])
 
   getOwnedGames(): OwnedGame[] {
     return this.ownedGamesStore.read()
@@ -78,5 +79,13 @@ export class ElectronStoreAppCacheRepository implements AppCacheRepository {
 
   setPendingLibraryRefreshAppIds(appIds: number[]): void {
     this.pendingLibraryRefreshAppIdsStore.write(appIds)
+  }
+
+  getManuallyOwnedDlcAppIds(): number[] {
+    return this.manuallyOwnedDlcAppIdsStore.read()
+  }
+
+  setManuallyOwnedDlcAppIds(appIds: number[]): void {
+    this.manuallyOwnedDlcAppIdsStore.write(appIds)
   }
 }

@@ -117,6 +117,8 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     }),
     getPendingLibraryRefreshAppIds: () => [],
     setPendingLibraryRefreshAppIds: vi.fn(),
+    getManuallyOwnedDlcAppIds: () => [],
+    setManuallyOwnedDlcAppIds: vi.fn(),
     ...overrides
   }
 }
@@ -211,6 +213,51 @@ describe('FetchOwnableDeals', () => {
 
     // DLC 100 (não possuída) entra; DLC 200 é descartada por já estar possuída (Set de owned games).
     expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([100], expect.any(Number), expect.any(Function))
+  })
+
+  it('não inclui como candidato a DLC que o usuário marcou manualmente como possuída', async () => {
+    const fetchDealsBySteamAppIds = makeFetchDealsBySteamAppIds((appIds) =>
+      appIds.map((appId) => makeDeal(appId))
+    )
+    const ownedGameMetadata: GameMetadata = {
+      appId: 1,
+      title: 'Jogo base',
+      genres: [],
+      headerImageUrl: null,
+      steamPrice: null,
+      steamDiscountPercent: null,
+      steamFullPrice: null,
+      shortDescription: null,
+      developers: [],
+      publishers: [],
+      releaseDate: null,
+      metacriticScore: null,
+      recommendationsTotal: null,
+      screenshots: [],
+      trailers: [],
+      dlcAppIds: [100, 200],
+      isDlc: false,
+      parentAppId: null
+    }
+    const cacheRepository = makeCacheRepository({
+      getWishlist: () => [],
+      getOwnedGames: () => [makeOwnedGame(1)],
+      getAllMetadata: () => [ownedGameMetadata],
+      getManuallyOwnedDlcAppIds: () => [100]
+    })
+    const useCase = new FetchOwnableDeals(
+      { fetchDealsBySteamAppIds },
+      { fetchMetadata: vi.fn(async () => null) },
+      { getRecord: vi.fn(), recordObservation: vi.fn() },
+      cacheRepository,
+      makeSessionLogRepository(),
+      makeHistoryRepository(),
+      makeSettingsRepository()
+    )
+
+    await useCase.execute()
+
+    expect(fetchDealsBySteamAppIds).toHaveBeenCalledWith([200], expect.any(Number), expect.any(Function))
   })
 
   it('registra observação de preço e enriquece com metadata para cada oferta', async () => {

@@ -34,6 +34,7 @@ import { JsonPollingStateRepository } from './infrastructure/storage/JsonPolling
 import { JsonSessionLogRepository } from './infrastructure/storage/JsonSessionLogRepository'
 import { SyncLibraryAndResolveNewGames } from './domain/use-cases/SyncLibraryAndResolveNewGames'
 import { RemoveWishlistItem } from './domain/use-cases/RemoveWishlistItem'
+import { SetDlcManualOwnership } from './domain/use-cases/SetDlcManualOwnership'
 import { SyncSteamWishlist } from './domain/use-cases/SyncSteamWishlist'
 import { FetchOwnableDeals } from './domain/use-cases/FetchOwnableDeals'
 import { ResolveMissingMetadata } from './domain/use-cases/ResolveMissingMetadata'
@@ -188,6 +189,7 @@ async function bootstrap(): Promise<void> {
     sessionLogRepository
   )
   const removeWishlistItem = new RemoveWishlistItem(cacheRepository, historyRepository)
+  const setDlcManualOwnership = new SetDlcManualOwnership(cacheRepository, historyRepository)
   const syncSteamWishlist = new SyncSteamWishlist(
     steamWishlistRepository,
     metadataRepository,
@@ -318,6 +320,7 @@ async function bootstrap(): Promise<void> {
     cacheRepository,
     historyRepository,
     priceHistoryRepository,
+    setDlcManualOwnership,
     librarySyncScheduler,
     removeWishlistItem,
     scheduler,

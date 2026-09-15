@@ -34,10 +34,13 @@ function makeDeps(notifyDeal: () => void): Parameters<typeof registerIpcHandlers
       getPendingDealsAppIds: () => [],
       setPendingDealsAppIds: noop,
       getPendingLibraryRefreshAppIds: () => [],
-      setPendingLibraryRefreshAppIds: noop
+      setPendingLibraryRefreshAppIds: noop,
+      getManuallyOwnedDlcAppIds: () => [],
+      setManuallyOwnedDlcAppIds: noop
     },
     historyRepository: { getEvents: () => [], addEvent: noop, removeEvents: noop },
     priceHistoryRepository: { getRecord: () => null, recordObservation: noop } as never,
+    setDlcManualOwnership: { execute: noop } as never,
     notificationService: { notifyDeal, notifyDealsBatch: noop, dismissAll: noop },
     notifiedDealsRepository: {
       alreadyNotifiedForPrice: () => false,

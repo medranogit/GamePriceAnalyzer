@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Empty, message, Progress, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, Checkbox, Empty, message, Progress, Space, Tag, Tooltip, Typography } from 'antd'
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
@@ -18,6 +18,7 @@ import {
   useResolveOneProgress
 } from '@renderer/hooks/useMetadata'
 import { useDeals } from '@renderer/hooks/useDeals'
+import { useManuallyOwnedDlc, useSetDlcManualOwnership } from '@renderer/hooks/useDlc'
 import { GameHero } from '@renderer/components/GameHero/GameHero'
 import { formatDate, formatPrice } from '@renderer/lib/formatters'
 import { getBestCurrentPrice } from '@shared/dealPricing'
@@ -118,7 +119,7 @@ const DlcList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 420px;
+  max-height: 320px;
   overflow-y: auto;
   padding-right: 4px;
 `
@@ -168,6 +169,8 @@ export function LibraryGameDetailPage() {
   const { data: games = [] } = useLibrary()
   const { data: metadataList = [] } = useMetadataCache()
   const { data: deals = [] } = useDeals()
+  const { data: manuallyOwnedDlcAppIds = [] } = useManuallyOwnedDlc()
+  const setDlcManualOwnership = useSetDlcManualOwnership()
   const { data: achievements } = useGameAchievements(numericAppId)
   const resolveMetadata = useResolveGameMetadata()
   const { data: resolveProgress } = useResolveOneProgress(numericAppId ?? -1, resolveMetadata.isPending)
@@ -267,6 +270,7 @@ export function LibraryGameDetailPage() {
   const hiddenAchievementsCount = sortedAchievements.length - visibleAchievements.length
 
   const ownedAppIds = new Set(games.map((g) => g.appId))
+  const manuallyOwnedSet = new Set(manuallyOwnedDlcAppIds)
   // Não possuída primeiro (mais acionável — dá pra ver preço/clicar), depois por nome.
   const dlcEntries = (metadata?.dlcAppIds ?? [])
     .map((dlcAppId) => {
@@ -276,11 +280,29 @@ export function LibraryGameDetailPage() {
         appId: dlcAppId,
         title: dlcMetadata?.title ?? deal?.title ?? `DLC ${dlcAppId}`,
         coverUrl: dlcMetadata?.headerImageUrl ?? deal?.coverUrl ?? null,
-        owned: ownedAppIds.has(dlcAppId),
+        // A Steam não lista DLC em GetOwnedGames (nem mapa de expansão gratuito) — `ownedOnSteam` na
+        // prática quase nunca é true, então o usuário confirma manualmente (ver `manuallyOwned`).
+        ownedOnSteam: ownedAppIds.has(dlcAppId),
+        manuallyOwned: manuallyOwnedSet.has(dlcAppId),
         deal: deal ?? null
       }
     })
-    .sort((a, b) => Number(a.owned) - Number(b.owned) || a.title.localeCompare(b.title))
+    .sort(
+      (a, b) =>
+        Number(a.ownedOnSteam || a.manuallyOwned) - Number(b.ownedOnSteam || b.manuallyOwned) ||
+        a.title.localeCompare(b.title)
+    )
+
+  const handleToggleDlcOwnership = (dlcAppId: number, owned: boolean): void => {
+    setDlcManualOwnership.mutate(
+      { appId: dlcAppId, owned },
+      {
+        onError: (error) => {
+          message.error(error instanceof Error ? error.message : 'Falha ao salvar.')
+        }
+      }
+    )
+  }
 
   return (
     <div>
@@ -419,15 +441,27 @@ export function LibraryGameDetailPage() {
                 >
                   {entry.coverUrl && <DlcThumb src={entry.coverUrl} alt={entry.title} />}
                   <DlcTitle>{entry.title}</DlcTitle>
-                  {entry.owned ? (
-                    <Tag color="green">Possui</Tag>
-                  ) : entry.deal ? (
-                    <Tag color="gold">
-                      {formatPrice(entry.deal.currency, getBestCurrentPrice(entry.deal)?.price ?? null)}
-                    </Tag>
-                  ) : (
-                    <Tag>Não possui</Tag>
-                  )}
+                  <Space onClick={(e) => e.stopPropagation()}>
+                    {entry.ownedOnSteam ? (
+                      <Tag color="green">Possui (Steam)</Tag>
+                    ) : (
+                      <>
+                        {!entry.manuallyOwned && entry.deal && (
+                          <Tag color="gold">
+                            {formatPrice(entry.deal.currency, getBestCurrentPrice(entry.deal)?.price ?? null)}
+                          </Tag>
+                        )}
+                        <Tooltip title="A Steam não informa se você possui DLC — marque manualmente.">
+                          <Checkbox
+                            checked={entry.manuallyOwned}
+                            onChange={(e) => handleToggleDlcOwnership(entry.appId, e.target.checked)}
+                          >
+                            Possui
+                          </Checkbox>
+                        </Tooltip>
+                      </>
+                    )}
+                  </Space>
                 </DlcRow>
               ))}
             </DlcList>

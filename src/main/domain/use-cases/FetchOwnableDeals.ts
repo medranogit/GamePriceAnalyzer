@@ -53,8 +53,14 @@ export class FetchOwnableDeals {
       .getAllMetadata()
       .filter((metadata) => ownedAppIds.has(metadata.appId))
       .flatMap((metadata) => metadata.dlcAppIds ?? [])
+    // DLC marcada manualmente como possuída (ver SetDlcManualOwnership) some das Ofertas do mesmo jeito
+    // que uma DLC detectada como possuída de verdade — a Steam não expõe ownership de DLC via API, então
+    // essa é a única forma de o usuário confirmar isso.
+    const manuallyOwnedDlcAppIds = new Set(this.cacheRepository.getManuallyOwnedDlcAppIds())
     const allCandidateAppIds = [...new Set([...wishlistAppIds, ...dlcCandidateAppIds])]
-    const candidateAppIds = allCandidateAppIds.filter((appId) => !ownedAppIds.has(appId))
+    const candidateAppIds = allCandidateAppIds.filter(
+      (appId) => !ownedAppIds.has(appId) && !manuallyOwnedDlcAppIds.has(appId)
+    )
     const ownedSkippedCount = allCandidateAppIds.length - candidateAppIds.length
     const candidateSet = new Set(candidateAppIds)
 

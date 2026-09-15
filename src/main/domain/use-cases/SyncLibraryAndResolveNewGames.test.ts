@@ -34,6 +34,8 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     setPendingDealsAppIds: vi.fn(),
     getPendingLibraryRefreshAppIds: () => [],
     setPendingLibraryRefreshAppIds: vi.fn(),
+    getManuallyOwnedDlcAppIds: () => [],
+    setManuallyOwnedDlcAppIds: vi.fn(),
     ...overrides
   }
 }

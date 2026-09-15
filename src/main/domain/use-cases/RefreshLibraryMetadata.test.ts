@@ -74,6 +74,8 @@ function makeCacheRepository(overrides: Partial<AppCacheRepository> = {}): AppCa
     setPendingLibraryRefreshAppIds: vi.fn((next: number[]) => {
       pendingLibraryRefreshAppIds = next
     }),
+    getManuallyOwnedDlcAppIds: () => [],
+    setManuallyOwnedDlcAppIds: vi.fn(),
     ...overrides
   }
 }
